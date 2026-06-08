@@ -1,5 +1,5 @@
 import { TestSuite } from './test-suite';
-import { TestSuiteResult, TestSuiteConfig, TestResult, ResourceLock, TestPreviewResult, TestPreviewItem } from './types';
+import { TestSuiteResult, TestSuiteConfig, TestResult, ResourceLock, TestPreviewResult, TestPreviewItem, FailedRerunPlan, FailedRerunItem } from './types';
 import { TestCase } from './test-case';
 
 export class TestRunner {
@@ -16,6 +16,7 @@ export class TestRunner {
       bail: config.bail ?? false,
       serialTags: config.serialTags ?? [],
       includeSkippedInReport: config.includeSkippedInReport ?? true,
+      includeCaseIds: config.includeCaseIds ?? [],
     };
   }
 
@@ -30,6 +31,14 @@ export class TestRunner {
 
     const skippedByTagCount = allTestCases.length - filteredCases.length;
 
+    let skippedByIdsCount = 0;
+    if (this.config.includeCaseIds.length > 0) {
+      const idSet = new Set(this.config.includeCaseIds);
+      const beforeCount = filteredCases.length;
+      filteredCases = filteredCases.filter(tc => idSet.has(tc.meta.id));
+      skippedByIdsCount = beforeCount - filteredCases.length;
+    }
+
     const skippedCases = filteredCases.filter(tc => tc.meta.skip);
     const runnableCases = filteredCases.filter(tc => !tc.meta.skip);
 
@@ -40,14 +49,18 @@ export class TestRunner {
     let parallelCount = 0;
 
     for (const tc of allTestCases) {
-      const inFiltered = filteredCases.some(f => f.meta.id === tc.meta.id);
+      const inTagFiltered = suite.filterByTags(this.config.tags, this.config.excludeTags).some(f => f.meta.id === tc.meta.id);
+      const inIdFiltered = this.config.includeCaseIds.length === 0 || this.config.includeCaseIds.includes(tc.meta.id);
+      const inFiltered = inTagFiltered && inIdFiltered;
       const isSkipped = tc.meta.skip;
 
       let willRun = inFiltered && !isSkipped;
       let skipReason: string | undefined;
 
-      if (!inFiltered) {
+      if (!inTagFiltered) {
         skipReason = '标签不匹配';
+      } else if (!inIdFiltered) {
+        skipReason = '不在重跑清单';
       } else if (isSkipped) {
         skipReason = 'skip 标记';
       }
@@ -99,9 +112,10 @@ export class TestRunner {
       suiteTitle: suite.title,
       total: allTestCases.length,
       willRun: runnableCases.length,
-      skipped: skippedByTagCount + skippedCases.length,
+      skipped: skippedByTagCount + skippedByIdsCount + skippedCases.length,
       skippedByTag: skippedByTagCount,
       skippedBySkipFlag: skippedCases.length,
+      skippedByIds: skippedByIdsCount,
       serialCount,
       parallelCount,
       resourceLocks: Array.from(allResourceLocks),
@@ -120,7 +134,12 @@ export class TestRunner {
       testCases = onlyTests;
     }
 
-    const filteredByTags = allTestCases.length !== testCases.length;
+    if (this.config.includeCaseIds.length > 0) {
+      const idSet = new Set(this.config.includeCaseIds);
+      testCases = testCases.filter(tc => idSet.has(tc.meta.id));
+    }
+
+    const filteredByTags = allTestCases.length !== testCases.length || this.config.includeCaseIds.length > 0;
     const originalTotal = allTestCases.length;
 
     const skippedCases = testCases.filter(tc => tc.meta.skip);
@@ -312,5 +331,39 @@ export class TestRunner {
 
   getResourceLockKeys(): string[] {
     return Array.from(this._resourceLocks.keys());
+  }
+
+  static getFailedRerunPlan(result: TestSuiteResult): FailedRerunPlan {
+    const failedCases = result.results.filter(r => r.status === 'failed' || r.status === 'timeout');
+    const items: FailedRerunItem[] = failedCases.map(r => {
+      const failedStep = r.steps.find(s => s.status === 'failed' || s.status === 'timeout');
+      return {
+        id: r.meta.id,
+        title: r.meta.title,
+        status: r.status as 'failed' | 'timeout',
+        tags: r.meta.tags,
+        priority: r.meta.priority,
+        dataSet: r.dataSet,
+        resourceLocks: r.meta.resourceLocks,
+        errorMessage: r.error?.message,
+        failedStep: failedStep?.name,
+      };
+    });
+
+    const failedCount = items.filter(i => i.status === 'failed').length;
+    const timeoutCount = items.filter(i => i.status === 'timeout').length;
+
+    return {
+      total: items.length,
+      failedCount,
+      timeoutCount,
+      items,
+    };
+  }
+
+  static getFailedCaseIds(result: TestSuiteResult): string[] {
+    return result.results
+      .filter(r => r.status === 'failed' || r.status === 'timeout')
+      .map(r => r.meta.id);
   }
 }

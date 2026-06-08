@@ -1,4 +1,4 @@
-import { TestSuiteResult, NotificationErrorRecord } from '../core/types';
+import { TestSuiteResult, NotificationErrorRecord, NotificationDeliveryRecord } from '../core/types';
 import { NotificationConfig } from '../core/types';
 
 export type NotificationType = 'success' | 'failure' | 'always';
@@ -28,6 +28,7 @@ export interface WebhookPayload {
 
 export interface NotificationOptions extends NotificationConfig {
   notifiers?: Notifier[];
+  notificationRetries?: number;
 }
 
 export interface Notifier {
@@ -174,6 +175,7 @@ export class NotificationManager {
       channels: options.channels || [],
       onSuccess: options.onSuccess ?? true,
       onFailure: options.onFailure ?? true,
+      notificationRetries: options.notificationRetries ?? 0,
       notifiers,
     };
   }
@@ -191,7 +193,7 @@ export class NotificationManager {
     return false;
   }
 
-  async notify(result: TestSuiteResult): Promise<NotificationErrorRecord[]> {
+  async notify(result: TestSuiteResult): Promise<NotificationDeliveryRecord[]> {
     const hasFailures = result.failed > 0;
     const type: NotificationType = hasFailures ? 'failure' : 'success';
 
@@ -211,25 +213,45 @@ export class NotificationManager {
       data: result,
     };
 
-    const errors: NotificationErrorRecord[] = [];
+    const deliveries: NotificationDeliveryRecord[] = [];
+    const maxRetries = this._config.notificationRetries;
+
     const promises = this._config.notifiers.map(async (n) => {
-      try {
-        await n.send(message, result);
-      } catch (error: any) {
-        errors.push({
-          notifierName: n.name,
-          error: error?.message || String(error),
-          timestamp: Date.now(),
-        });
-        console.error(`[NotificationManager] Notifier "${n.name}" failed: ${error?.message || error}`);
-      }
+      const startTime = Date.now();
+      let retryCount = 0;
+      let lastError: string | undefined;
+      let success = false;
+
+      do {
+        try {
+          await n.send(message, result);
+          success = true;
+          break;
+        } catch (error: any) {
+          lastError = error?.message || String(error);
+          console.error(`[NotificationManager] Notifier "${n.name}" failed (attempt ${retryCount + 1}): ${lastError}`);
+          if (retryCount < maxRetries) {
+            retryCount++;
+            await new Promise(r => setTimeout(r, 100 * retryCount));
+          }
+        }
+      } while (retryCount <= maxRetries && !success);
+
+      deliveries.push({
+        notifierName: n.name,
+        status: success ? 'success' : 'failed',
+        sentAt: startTime,
+        retryCount,
+        lastError: success ? undefined : lastError,
+        durationMs: Date.now() - startTime,
+      });
     });
 
     await Promise.all(promises);
-    return errors;
+    return deliveries;
   }
 
-  async notifySuccess(result: TestSuiteResult): Promise<NotificationErrorRecord[]> {
+  async notifySuccess(result: TestSuiteResult): Promise<NotificationDeliveryRecord[]> {
     if (!this._config.onSuccess) return [];
 
     const message: NotificationMessage = {
@@ -240,24 +262,10 @@ export class NotificationManager {
       data: result,
     };
 
-    const errors: NotificationErrorRecord[] = [];
-    const promises = this._config.notifiers.map(async (n) => {
-      try {
-        await n.send(message, result);
-      } catch (error: any) {
-        errors.push({
-          notifierName: n.name,
-          error: error?.message || String(error),
-          timestamp: Date.now(),
-        });
-      }
-    });
-
-    await Promise.all(promises);
-    return errors;
+    return this._sendToAll(message, result);
   }
 
-  async notifyFailure(result: TestSuiteResult): Promise<NotificationErrorRecord[]> {
+  async notifyFailure(result: TestSuiteResult): Promise<NotificationDeliveryRecord[]> {
     if (!this._config.onFailure) return [];
 
     const message: NotificationMessage = {
@@ -268,21 +276,45 @@ export class NotificationManager {
       data: result,
     };
 
-    const errors: NotificationErrorRecord[] = [];
+    return this._sendToAll(message, result);
+  }
+
+  private async _sendToAll(message: NotificationMessage, result: TestSuiteResult): Promise<NotificationDeliveryRecord[]> {
+    const deliveries: NotificationDeliveryRecord[] = [];
+    const maxRetries = this._config.notificationRetries;
+
     const promises = this._config.notifiers.map(async (n) => {
-      try {
-        await n.send(message, result);
-      } catch (error: any) {
-        errors.push({
-          notifierName: n.name,
-          error: error?.message || String(error),
-          timestamp: Date.now(),
-        });
-      }
+      const startTime = Date.now();
+      let retryCount = 0;
+      let lastError: string | undefined;
+      let success = false;
+
+      do {
+        try {
+          await n.send(message, result);
+          success = true;
+          break;
+        } catch (error: any) {
+          lastError = error?.message || String(error);
+          if (retryCount < maxRetries) {
+            retryCount++;
+            await new Promise(r => setTimeout(r, 100 * retryCount));
+          }
+        }
+      } while (retryCount <= maxRetries && !success);
+
+      deliveries.push({
+        notifierName: n.name,
+        status: success ? 'success' : 'failed',
+        sentAt: startTime,
+        retryCount,
+        lastError: success ? undefined : lastError,
+        durationMs: Date.now() - startTime,
+      });
     });
 
     await Promise.all(promises);
-    return errors;
+    return deliveries;
   }
 
   private _buildMessageContent(result: TestSuiteResult): string {

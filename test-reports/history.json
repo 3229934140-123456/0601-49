@@ -1,12 +1,38 @@
 {
   "projectName": "订单系统",
   "environment": "test",
-  "totalReports": 1,
+  "totalReports": 2,
   "passRateTrend": [
+    70,
     70
   ],
-  "lastUpdated": 1780889009044,
+  "lastUpdated": 1780890194712,
   "reports": [
+    {
+      "reportId": "report_suite-1780890194684-p7rm728_1780890194704",
+      "suiteTitle": "订单流程测试 - V2增强版",
+      "suiteId": "suite-1780890194684-p7rm728",
+      "startTime": 1780890194685,
+      "endTime": 1780890194688,
+      "duration": 3,
+      "total": 10,
+      "passed": 7,
+      "failed": 2,
+      "skipped": 1,
+      "timeout": 0,
+      "passRate": 70,
+      "reportUrls": {
+        "html": "https://reports.example.com/share/report_suite-1780890194684-p7rm728_1780890194704.html",
+        "json": "https://reports.example.com/share/report_suite-1780890194684-p7rm728_1780890194704.json",
+        "markdown": "https://reports.example.com/share/report_suite-1780890194684-p7rm728_1780890194704.md"
+      },
+      "failedCaseNames": [
+        "会失败的测试用例（带断言对比）",
+        "参数化-账号登录 - user_3_9vp7"
+      ],
+      "environment": "test",
+      "projectName": "订单系统"
+    },
     {
       "reportId": "report_suite-1780889009022-82995ob_1780889009039",
       "suiteTitle": "订单流程测试 - V2增强版",
@@ -34,11 +60,11 @@
     }
   ],
   "latestReport": {
-    "reportId": "report_suite-1780889009022-82995ob_1780889009039",
+    "reportId": "report_suite-1780890194684-p7rm728_1780890194704",
     "suiteTitle": "订单流程测试 - V2增强版",
-    "suiteId": "suite-1780889009022-82995ob",
-    "startTime": 1780889009023,
-    "endTime": 1780889009026,
+    "suiteId": "suite-1780890194684-p7rm728",
+    "startTime": 1780890194685,
+    "endTime": 1780890194688,
     "duration": 3,
     "total": 10,
     "passed": 7,
@@ -47,15 +73,35 @@
     "timeout": 0,
     "passRate": 70,
     "reportUrls": {
-      "html": "https://reports.example.com/share/report_suite-1780889009022-82995ob_1780889009039.html",
-      "json": "https://reports.example.com/share/report_suite-1780889009022-82995ob_1780889009039.json",
-      "markdown": "https://reports.example.com/share/report_suite-1780889009022-82995ob_1780889009039.md"
+      "html": "https://reports.example.com/share/report_suite-1780890194684-p7rm728_1780890194704.html",
+      "json": "https://reports.example.com/share/report_suite-1780890194684-p7rm728_1780890194704.json",
+      "markdown": "https://reports.example.com/share/report_suite-1780890194684-p7rm728_1780890194704.md"
     },
     "failedCaseNames": [
       "会失败的测试用例（带断言对比）",
-      "参数化-账号登录 - user_3_T7oH"
+      "参数化-账号登录 - user_3_9vp7"
     ],
     "environment": "test",
     "projectName": "订单系统"
+  },
+  "latestDiff": {
+    "baseReportId": "report_suite-1780889009022-82995ob_1780889009039",
+    "targetReportId": "report_suite-1780890194684-p7rm728_1780890194704",
+    "baseSuiteTitle": "订单流程测试 - V2增强版",
+    "targetSuiteTitle": "订单流程测试 - V2增强版",
+    "passRateChange": 0,
+    "totalChange": 0,
+    "passedChange": 0,
+    "failedChange": 0,
+    "skippedChange": 0,
+    "newFailedCases": [
+      "参数化-账号登录 - user_3_9vp7"
+    ],
+    "recoveredCases": [
+      "参数化-账号登录 - user_3_T7oH"
+    ],
+    "persistentFailedCases": [
+      "会失败的测试用例（带断言对比）"
+    ]
   }
 }

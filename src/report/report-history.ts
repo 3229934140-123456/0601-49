@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { TestSuiteResult, ReportHistoryEntry, ReportHistoryIndex } from '../core/types';
+import { TestSuiteResult, ReportHistoryEntry, ReportHistoryIndex, ReportDiff } from '../core/types';
 import { GeneratedReport } from './report-generator';
 
 export interface ReportHistoryConfig {
@@ -63,6 +63,8 @@ export class ReportHistoryManager {
     };
 
     const index = this._loadIndex();
+    const previousReport = index.reports[0];
+
     index.reports.unshift(entry);
     if (index.reports.length > this._config.maxHistory) {
       index.reports = index.reports.slice(0, this._config.maxHistory);
@@ -73,6 +75,10 @@ export class ReportHistoryManager {
     index.lastUpdated = Date.now();
     index.projectName = this._config.projectName;
     index.environment = this._config.environment;
+
+    if (previousReport) {
+      index.latestDiff = this._computeDiff(previousReport, entry);
+    }
 
     this._saveIndex(index);
     this._generateIndexHtml(index);
@@ -90,6 +96,42 @@ export class ReportHistoryManager {
 
   getReportById(reportId: string): ReportHistoryEntry | undefined {
     return this._loadIndex().reports.find(r => r.reportId === reportId);
+  }
+
+  getLatestDiff(): ReportDiff | undefined {
+    return this._loadIndex().latestDiff;
+  }
+
+  getReportDiff(baseReportId: string, targetReportId: string): ReportDiff | undefined {
+    const index = this._loadIndex();
+    const base = index.reports.find(r => r.reportId === baseReportId);
+    const target = index.reports.find(r => r.reportId === targetReportId);
+    if (!base || !target) return undefined;
+    return this._computeDiff(base, target);
+  }
+
+  private _computeDiff(base: ReportHistoryEntry, target: ReportHistoryEntry): ReportDiff {
+    const baseFailedSet = new Set(base.failedCaseNames);
+    const targetFailedSet = new Set(target.failedCaseNames);
+
+    const newFailedCases = target.failedCaseNames.filter(name => !baseFailedSet.has(name));
+    const recoveredCases = base.failedCaseNames.filter(name => !targetFailedSet.has(name));
+    const persistentFailedCases = target.failedCaseNames.filter(name => baseFailedSet.has(name));
+
+    return {
+      baseReportId: base.reportId,
+      targetReportId: target.reportId,
+      baseSuiteTitle: base.suiteTitle,
+      targetSuiteTitle: target.suiteTitle,
+      passRateChange: +(target.passRate - base.passRate).toFixed(2),
+      totalChange: target.total - base.total,
+      passedChange: target.passed - base.passed,
+      failedChange: target.failed - base.failed,
+      skippedChange: target.skipped - base.skipped,
+      newFailedCases,
+      recoveredCases,
+      persistentFailedCases,
+    };
   }
 
   clearHistory(): void {
@@ -140,6 +182,7 @@ export class ReportHistoryManager {
   private _buildIndexHtml(index: ReportHistoryIndex): string {
     const latest = index.latestReport;
     const trend = index.passRateTrend;
+    const diff = index.latestDiff;
 
     const trendBars = trend.map((rate, i) => {
       const height = Math.max(4, (rate / 100) * 120);
@@ -148,6 +191,8 @@ export class ReportHistoryManager {
         <div class="trend-bar" style="height: ${height}px; background: ${color};" title="第${trend.length - i}次: ${rate.toFixed(1)}%"></div>
       `;
     }).join('');
+
+    const diffHtml = diff ? this._buildDiffHtml(diff) : '';
 
     const reportRows = index.reports.map(r => {
       const passRateColor = r.passRate >= 80 ? '#27ae60' : r.passRate >= 60 ? '#f39c12' : '#e74c3c';
@@ -233,6 +278,25 @@ export class ReportHistoryManager {
     .failed-list.empty { color: #999; font-size: 12px; }
     .failed-tag { display: inline-block; background: #fee; color: #c0392b; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin-right: 4px; }
     .more-failed { font-size: 11px; color: #999; }
+    .diff-section { background: #fff; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .diff-section h2 { font-size: 18px; margin-bottom: 16px; }
+    .diff-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 16px; }
+    .diff-stat { text-align: center; padding: 12px; border-radius: 6px; background: #f6f8fa; }
+    .diff-stat .label { font-size: 12px; color: #666; margin-bottom: 4px; }
+    .diff-stat .value { font-size: 20px; font-weight: bold; }
+    .diff-stat .value.up { color: #27ae60; }
+    .diff-stat .value.down { color: #e74c3c; }
+    .diff-stat .value.same { color: #95a5a6; }
+    .diff-groups { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+    .diff-group { background: #fafbfc; border-radius: 6px; padding: 12px; }
+    .diff-group h3 { font-size: 13px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    .diff-group.new h3 { color: #e67e22; }
+    .diff-group.recovered h3 { color: #27ae60; }
+    .diff-group.persistent h3 { color: #e74c3c; }
+    .diff-group ul { list-style: none; font-size: 12px; }
+    .diff-group li { padding: 4px 0; border-bottom: 1px solid #eee; }
+    .diff-group li:last-child { border-bottom: none; }
+    .diff-group .empty { color: #999; font-size: 12px; font-style: italic; }
   </style>
 </head>
 <body>
@@ -271,6 +335,8 @@ export class ReportHistoryManager {
         ${trendBars}
       </div>
     </div>` : ''}
+
+    ${diffHtml}
 
     <div class="section">
       <h2>📋 历史报告列表</h2>
@@ -313,6 +379,72 @@ export class ReportHistoryManager {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
+  }
+
+  private _buildDiffHtml(diff: ReportDiff): string {
+    const passRateClass = diff.passRateChange > 0 ? 'up' : diff.passRateChange < 0 ? 'down' : 'same';
+    const passRateSign = diff.passRateChange > 0 ? '+' : '';
+    const passedClass = diff.passedChange > 0 ? 'up' : diff.passedChange < 0 ? 'down' : 'same';
+    const passedSign = diff.passedChange > 0 ? '+' : '';
+    const failedClass = diff.failedChange > 0 ? 'down' : diff.failedChange < 0 ? 'up' : 'same';
+    const failedSign = diff.failedChange > 0 ? '+' : '';
+    const totalClass = diff.totalChange > 0 ? 'up' : diff.totalChange < 0 ? 'down' : 'same';
+    const totalSign = diff.totalChange > 0 ? '+' : '';
+    const skippedClass = diff.skippedChange > 0 ? 'down' : diff.skippedChange < 0 ? 'up' : 'same';
+    const skippedSign = diff.skippedChange > 0 ? '+' : '';
+
+    const newFailedList = diff.newFailedCases.length > 0
+      ? `<ul>${diff.newFailedCases.map(name => `<li>❌ ${this._escapeHtml(name)}</li>`).join('')}</ul>`
+      : '<div class="empty">无新增失败 🎉</div>';
+
+    const recoveredList = diff.recoveredCases.length > 0
+      ? `<ul>${diff.recoveredCases.map(name => `<li>✅ ${this._escapeHtml(name)}</li>`).join('')}</ul>`
+      : '<div class="empty">无恢复用例</div>';
+
+    const persistentList = diff.persistentFailedCases.length > 0
+      ? `<ul>${diff.persistentFailedCases.map(name => `<li>🔴 ${this._escapeHtml(name)}</li>`).join('')}</ul>`
+      : '<div class="empty">无持续失败</div>';
+
+    return `
+    <div class="diff-section">
+      <h2>🔍 最近两次对比 <span style="font-size: 12px; color: #999; font-weight: normal;">${this._escapeHtml(diff.baseSuiteTitle)} → ${this._escapeHtml(diff.targetSuiteTitle)}</span></h2>
+      <div class="diff-stats">
+        <div class="diff-stat">
+          <div class="label">通过率变化</div>
+          <div class="value ${passRateClass}">${passRateSign}${diff.passRateChange.toFixed(1)}%</div>
+        </div>
+        <div class="diff-stat">
+          <div class="label">总数变化</div>
+          <div class="value ${totalClass}">${totalSign}${diff.totalChange}</div>
+        </div>
+        <div class="diff-stat">
+          <div class="label">通过变化</div>
+          <div class="value ${passedClass}">${passedSign}${diff.passedChange}</div>
+        </div>
+        <div class="diff-stat">
+          <div class="label">失败变化</div>
+          <div class="value ${failedClass}">${failedSign}${diff.failedChange}</div>
+        </div>
+        <div class="diff-stat">
+          <div class="label">跳过变化</div>
+          <div class="value ${skippedClass}">${skippedSign}${diff.skippedChange}</div>
+        </div>
+      </div>
+      <div class="diff-groups">
+        <div class="diff-group new">
+          <h3>🆕 新增失败 (${diff.newFailedCases.length})</h3>
+          ${newFailedList}
+        </div>
+        <div class="diff-group recovered">
+          <h3>💚 已恢复 (${diff.recoveredCases.length})</h3>
+          ${recoveredList}
+        </div>
+        <div class="diff-group persistent">
+          <h3>🔴 持续失败 (${diff.persistentFailedCases.length})</h3>
+          ${persistentList}
+        </div>
+      </div>
+    </div>`;
   }
 
   private _formatDuration(ms?: number): string {

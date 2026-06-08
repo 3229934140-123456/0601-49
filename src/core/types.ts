@@ -95,12 +95,22 @@ export interface TestSuiteResult {
   };
   filteredByTags?: boolean;
   originalTotal?: number;
+  notificationDeliveries?: NotificationDeliveryRecord[];
 }
 
 export interface NotificationErrorRecord {
   notifierName: string;
   error: string;
   timestamp: number;
+}
+
+export interface NotificationDeliveryRecord {
+  notifierName: string;
+  status: 'success' | 'failed';
+  sentAt: number;
+  retryCount: number;
+  lastError?: string;
+  durationMs?: number;
 }
 
 export interface TestContextData {
@@ -135,6 +145,7 @@ export interface TestSuiteConfig {
   bail?: boolean;
   serialTags?: string[];
   includeSkippedInReport?: boolean;
+  includeCaseIds?: string[];
 }
 
 export interface NotificationConfig {
@@ -199,6 +210,7 @@ export interface TestPreviewResult {
   skipped: number;
   skippedByTag: number;
   skippedBySkipFlag: number;
+  skippedByIds?: number;
   serialCount: number;
   parallelCount: number;
   resourceLocks: string[];
@@ -236,4 +248,39 @@ export interface ReportHistoryIndex {
   passRateTrend: number[];
   lastUpdated: number;
   reports: ReportHistoryEntry[];
+  latestDiff?: ReportDiff;
+}
+
+export interface ReportDiff {
+  baseReportId: string;
+  targetReportId: string;
+  baseSuiteTitle: string;
+  targetSuiteTitle: string;
+  passRateChange: number;
+  totalChange: number;
+  passedChange: number;
+  failedChange: number;
+  skippedChange: number;
+  newFailedCases: string[];
+  recoveredCases: string[];
+  persistentFailedCases: string[];
+}
+
+export interface FailedRerunItem {
+  id: string;
+  title: string;
+  status: 'failed' | 'timeout';
+  tags: string[];
+  priority: string;
+  dataSet?: DataSetMeta;
+  resourceLocks?: string[];
+  errorMessage?: string;
+  failedStep?: string;
+}
+
+export interface FailedRerunPlan {
+  total: number;
+  failedCount: number;
+  timeoutCount: number;
+  items: FailedRerunItem[];
 }

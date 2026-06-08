@@ -1,7 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { TestSuiteResult, TestResult, TestStep, RetryRecord, ReportConfig } from '../core/types';
-import { NotificationErrorRecord } from '../core/types';
+import { TestSuiteResult, TestResult, TestStep, RetryRecord, ReportConfig, NotificationErrorRecord, NotificationDeliveryRecord } from '../core/types';
 import { ReportHistoryManager } from './report-history';
 
 export interface ReportGeneratorOptions extends ReportConfig {
@@ -60,6 +59,21 @@ export class ReportGenerator {
     result.projectName = this._config.projectName;
     result.environment = this._config.environment;
 
+    const reportUrls: { html?: string; json?: string; markdown?: string } = {};
+    const fileNames: { html?: string; json?: string; markdown?: string } = {};
+
+    for (const format of this._config.format) {
+      const ext = format === 'markdown' ? 'md' : format;
+      const fileName = `${reportId}.${ext}`;
+      fileNames[format as keyof typeof fileNames] = fileName;
+      if (this._config.shareable && this._config.shareBaseUrl) {
+        reportUrls[format as keyof typeof reportUrls] = `${this._config.shareBaseUrl.replace(/\/$/, '')}/${fileName}`;
+      } else {
+        reportUrls[format as keyof typeof reportUrls] = path.join(this._config.outputDir!, fileName);
+      }
+    }
+    result.reportUrls = reportUrls;
+
     const reports: GeneratedReport[] = [];
 
     for (const format of this._config.format) {
@@ -80,21 +94,12 @@ export class ReportGenerator {
       }
 
       if (this._config.shareable && this._config.shareBaseUrl) {
-        const fileName = path.basename(report.path);
+        const fileName = fileNames[format as keyof typeof fileNames]!;
         report.shareableUrl = `${this._config.shareBaseUrl.replace(/\/$/, '')}/${fileName}`;
       }
 
       reports.push(report);
     }
-
-    const reportUrls: { html?: string; json?: string; markdown?: string } = {};
-    for (const r of reports) {
-      const url = r.shareableUrl || r.path;
-      if (r.format === 'html') reportUrls.html = url;
-      if (r.format === 'json') reportUrls.json = url;
-      if (r.format === 'markdown') reportUrls.markdown = url;
-    }
-    result.reportUrls = reportUrls;
 
     if (this._historyManager) {
       this._historyManager.addReport(result, reports);
@@ -182,12 +187,17 @@ export class ReportGenerator {
       ? skippedResults.map(r => this._buildTestCaseHtml(r)).join('')
       : '';
 
-    const notificationErrorsHtml = (result.notificationErrors && result.notificationErrors.length > 0)
-      ? this._buildNotificationErrorsHtml(result.notificationErrors)
+    const notificationDeliveriesHtml = (result.notificationDeliveries && result.notificationDeliveries.length > 0)
+      ? this._buildNotificationDeliveriesHtml(result.notificationDeliveries)
       : '';
 
-    const shareUrlHtml = this._config.shareable && this._config.shareBaseUrl && result.reportUrls?.html
-      ? `<div>🔗 分享地址: <a href="${result.reportUrls.html}" target="_blank" style="color: #0366d6; text-decoration: none;">${result.reportUrls.html}</a></div>`
+    const reportUrls = result.reportUrls || {};
+    const reportUrlsList: string[] = [];
+    if (reportUrls.html) reportUrlsList.push(`<div>🌐 HTML: <a href="${reportUrls.html}" target="_blank" style="color: #0366d6; text-decoration: none;">${reportUrls.html}</a></div>`);
+    if (reportUrls.json) reportUrlsList.push(`<div>📄 JSON: <a href="${reportUrls.json}" target="_blank" style="color: #0366d6; text-decoration: none;">${reportUrls.json}</a></div>`);
+    if (reportUrls.markdown) reportUrlsList.push(`<div>� Markdown: <a href="${reportUrls.markdown}" target="_blank" style="color: #0366d6; text-decoration: none;">${reportUrls.markdown}</a></div>`);
+    const reportUrlsHtml = reportUrlsList.length > 0
+      ? `<div class="report-urls" style="margin-top: 10px; font-size: 13px; line-height: 1.9;">${reportUrlsList.join('')}</div>`
       : '';
 
     const historyUrlHtml = this._config.enableHistory
@@ -297,7 +307,7 @@ export class ReportGenerator {
         <div>📦 项目: ${this._config.projectName} | 🌍 环境: ${this._config.environment}</div>
         <div>📋 套件: ${result.title} | 📅 生成时间: ${new Date().toLocaleString('zh-CN')}</div>
         <div>⏱️ 总耗时: ${this._formatDuration(result.duration)} | 报告ID: ${result.reportId || '-'}</div>
-        ${shareUrlHtml}
+        ${reportUrlsHtml}
         ${historyUrlHtml}
       </div>
       ${filteredNoticeHtml}
@@ -330,7 +340,7 @@ export class ReportGenerator {
       </div>
     </div>
 
-    ${notificationErrorsHtml}
+    ${notificationDeliveriesHtml}
 
     <div class="section">
       <div class="tabs">
@@ -570,17 +580,29 @@ export class ReportGenerator {
     </div>`;
   }
 
-  private _buildNotificationErrorsHtml(errors: NotificationErrorRecord[]): string {
-    const items = errors.map(e => `
-      <div class="notification-error">
-        <div class="name">⚠️ 通知失败 - ${this._escapeHtml(e.notifierName)}</div>
-        <div class="msg">${this._escapeHtml(e.error)}</div>
-        <div class="msg" style="color: #999;">时间: ${new Date(e.timestamp).toLocaleString('zh-CN')}</div>
-      </div>
-    `).join('');
+  private _buildNotificationDeliveriesHtml(deliveries: NotificationDeliveryRecord[]): string {
+    const successCount = deliveries.filter(d => d.status === 'success').length;
+    const failedCount = deliveries.filter(d => d.status === 'failed').length;
+    const items = deliveries.map(d => {
+      const isSuccess = d.status === 'success';
+      const icon = isSuccess ? '✅' : '⚠️';
+      const statusText = isSuccess ? '发送成功' : '发送失败';
+      const statusClass = isSuccess ? 'delivery-success' : 'delivery-failed';
+      const errorLine = d.lastError ? `<div class="msg" style="color: #c62828; margin-top: 4px;">错误: ${this._escapeHtml(d.lastError)}</div>` : '';
+      const retryLine = d.retryCount > 0 ? `<div class="msg" style="color: #e65100;">重试次数: ${d.retryCount}</div>` : '';
+      const durationLine = d.durationMs !== undefined ? `<div class="msg" style="color: #999;">耗时: ${d.durationMs}ms</div>` : '';
+      return `
+      <div class="notification-delivery ${statusClass}" style="border-left: 4px solid ${isSuccess ? '#27ae60' : '#ff9800'}; background: ${isSuccess ? '#f0fff4' : '#fff8e6'}; padding: 10px 14px; margin-bottom: 8px;">
+        <div style="font-weight: bold; color: ${isSuccess ? '#2e7d32' : '#e65100'};">${icon} ${statusText} - ${this._escapeHtml(d.notifierName)}</div>
+        <div class="msg" style="color: #666; margin-top: 4px;">时间: ${new Date(d.sentAt).toLocaleString('zh-CN')}</div>
+        ${retryLine}
+        ${durationLine}
+        ${errorLine}
+      </div>`;
+    }).join('');
 
     return `<div class="section">
-      <h2>⚠️ 通知异常 <span class="count">${errors.length}</span></h2>
+      <h2>📬 通知投递记录 <span class="count">成功 ${successCount} / 失败 ${failedCount}</span></h2>
       ${items}
     </div>`;
   }
@@ -623,10 +645,24 @@ export class ReportGenerator {
     md += `| ⏭️ 跳过 | ${result.skipped} |\n`;
     md += `| 📊 通过率 | ${passRate}% |\n\n`;
 
-    if (result.notificationErrors && result.notificationErrors.length > 0) {
-      md += `## ⚠️ 通知异常\n\n`;
-      for (const e of result.notificationErrors) {
-        md += `- **${e.notifierName}**: ${e.error}\n`;
+    if (result.notificationDeliveries && result.notificationDeliveries.length > 0) {
+      const successCount = result.notificationDeliveries.filter(d => d.status === 'success').length;
+      const failedCount = result.notificationDeliveries.filter(d => d.status === 'failed').length;
+      md += `## 📬 通知投递记录 (成功 ${successCount} / 失败 ${failedCount})\n\n`;
+      for (const d of result.notificationDeliveries) {
+        const icon = d.status === 'success' ? '✅' : '⚠️';
+        const statusText = d.status === 'success' ? '成功' : '失败';
+        md += `- ${icon} **${d.notifierName}** - ${statusText}\n`;
+        md += `  - 发送时间: ${new Date(d.sentAt).toLocaleString('zh-CN')}\n`;
+        if (d.retryCount > 0) {
+          md += `  - 重试次数: ${d.retryCount}\n`;
+        }
+        if (d.durationMs !== undefined) {
+          md += `  - 耗时: ${d.durationMs}ms\n`;
+        }
+        if (d.lastError) {
+          md += `  - 错误: ${d.lastError}\n`;
+        }
       }
       md += `\n`;
     }

@@ -517,7 +517,7 @@ async function exampleFullTestSuite() {
   console.log('  🚀 开始执行测试套件...');
   console.log('');
 
-  const { result, reports, notificationErrors } = await platform.runSuite(suite);
+  const { result, reports, notificationErrors, notificationDeliveries } = await platform.runSuite(suite);
 
   console.log('');
   console.log('  === 测试结果 ===');
@@ -545,6 +545,18 @@ async function exampleFullTestSuite() {
   });
   console.log('');
 
+  console.log('  📬 通知投递记录:');
+  notificationDeliveries.forEach(d => {
+    const icon = d.status === 'success' ? '✅' : '⚠️';
+    const statusText = d.status === 'success' ? '成功' : '失败';
+    console.log('    ' + icon, d.notifierName + ':', statusText);
+    console.log('       发送时间:', new Date(d.sentAt).toLocaleString('zh-CN'));
+    if (d.retryCount > 0) console.log('       重试次数:', d.retryCount);
+    if (d.durationMs !== undefined) console.log('       耗时:', d.durationMs + 'ms');
+    if (d.lastError) console.log('       错误:', d.lastError);
+  });
+  console.log('');
+
   if (notificationErrors.length > 0) {
     console.log('  ⚠️ 通知异常:');
     notificationErrors.forEach(e => {
@@ -561,8 +573,47 @@ async function exampleFullTestSuite() {
     console.log('    最近通过率趋势:', history.passRateTrend.map(r => r.toFixed(0) + '%').join(' → '));
     console.log('    最新报告:', history.latestReport?.suiteTitle || '-');
     console.log('    历史索引页:', 'test-reports/index.html');
+
+    if (history.latestDiff) {
+      const diff = history.latestDiff;
+      console.log('');
+      console.log('  🔍 最近两次对比:');
+      console.log('    通过率变化:', (diff.passRateChange > 0 ? '+' : '') + diff.passRateChange.toFixed(1) + '%');
+      console.log('    🆕 新增失败:', diff.newFailedCases.length + ' 个');
+      if (diff.newFailedCases.length > 0) {
+        diff.newFailedCases.forEach(name => console.log('      -', name));
+      }
+      console.log('    💚 已恢复:', diff.recoveredCases.length + ' 个');
+      if (diff.recoveredCases.length > 0) {
+        diff.recoveredCases.forEach(name => console.log('      -', name));
+      }
+      console.log('    🔴 持续失败:', diff.persistentFailedCases.length + ' 个');
+      if (diff.persistentFailedCases.length > 0) {
+        diff.persistentFailedCases.forEach(name => console.log('      -', name));
+      }
+    }
     console.log('');
   }
+
+  console.log('  🔄 失败重跑清单:');
+  const rerunPlan = platform.getFailedRerunPlan(result);
+  console.log('    总失败数:', rerunPlan.total, '(失败:', rerunPlan.failedCount, ', 超时:', rerunPlan.timeoutCount, ')');
+  if (rerunPlan.items.length > 0) {
+    rerunPlan.items.forEach(item => {
+      const icon = item.status === 'failed' ? '❌' : '⏰';
+      const dataInfo = item.dataSet ? ` [${item.dataSet.name}]` : '';
+      console.log('    ' + icon, item.title + dataInfo);
+      console.log('       ID:', item.id);
+      console.log('       标签:', item.tags.join(', ') || '无');
+      console.log('       优先级:', item.priority);
+      if (item.resourceLocks && item.resourceLocks.length > 0) {
+        console.log('       资源锁:', item.resourceLocks.join(', '));
+      }
+      if (item.failedStep) console.log('       失败步骤:', item.failedStep);
+      if (item.errorMessage) console.log('       错误:', item.errorMessage);
+    });
+  }
+  console.log('');
 
   console.log('  用例详情:');
   result.results.forEach(r => {

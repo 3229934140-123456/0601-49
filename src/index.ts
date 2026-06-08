@@ -9,10 +9,10 @@ export * from './notification';
 export * from './parameterized';
 
 import { TestCase, TestSuite, TestRunner } from './core';
-import { TestSuiteConfig, TestPreviewResult } from './core';
+import { TestSuiteConfig, TestPreviewResult, FailedRerunPlan, ReportDiff } from './core';
 import { ReportGenerator, ReportGeneratorOptions, GeneratedReport, ReportHistoryManager } from './report';
 import { NotificationManager, NotificationOptions } from './notification';
-import { TestSuiteResult, NotificationErrorRecord } from './core/types';
+import { TestSuiteResult, NotificationErrorRecord, NotificationDeliveryRecord } from './core/types';
 
 export interface AutoTestPlatformConfig {
   runner?: TestSuiteConfig;
@@ -24,6 +24,7 @@ export interface RunSuiteResult {
   result: TestSuiteResult;
   reports: GeneratedReport[];
   notificationErrors: NotificationErrorRecord[];
+  notificationDeliveries: NotificationDeliveryRecord[];
 }
 
 export class AutoTestPlatform {
@@ -51,8 +52,16 @@ export class AutoTestPlatform {
   async runSuite(suite: TestSuite): Promise<RunSuiteResult> {
     const result = await this._runner.run(suite);
 
-    const notificationErrors = await this._notificationManager.notify(result);
+    const deliveries = await this._notificationManager.notify(result);
+    result.notificationDeliveries = deliveries;
 
+    const notificationErrors = deliveries
+      .filter(d => d.status === 'failed')
+      .map(d => ({
+        notifierName: d.notifierName,
+        error: d.lastError || 'Unknown error',
+        timestamp: d.sentAt,
+      }));
     if (notificationErrors.length > 0) {
       result.notificationErrors = notificationErrors;
     }
@@ -63,6 +72,7 @@ export class AutoTestPlatform {
       result,
       reports,
       notificationErrors,
+      notificationDeliveries: deliveries,
     };
   }
 
@@ -77,8 +87,26 @@ export class AutoTestPlatform {
     return allResults;
   }
 
+  getFailedRerunPlan(result: TestSuiteResult): FailedRerunPlan {
+    return TestRunner.getFailedRerunPlan(result);
+  }
+
   getReportHistory() {
     return this._reportGenerator.getHistory();
+  }
+
+  getLatestReportDiff(): ReportDiff | undefined {
+    return this._reportGenerator.historyManager?.getLatestDiff();
+  }
+
+  getReportDiff(baseReportId: string, targetReportId: string): ReportDiff | undefined {
+    return this._reportGenerator.historyManager?.getReportDiff(baseReportId, targetReportId);
+  }
+
+  withRunnerConfig(config: Partial<TestSuiteConfig>): AutoTestPlatform {
+    const mergedConfig = { ...this._runner['config'], ...config };
+    this._runner = new TestRunner(mergedConfig);
+    return this;
   }
 
   get runner(): TestRunner {
