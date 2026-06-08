@@ -1,0 +1,673 @@
+{
+  "meta": {
+    "title": "订单系统测试报告",
+    "project": "订单系统",
+    "environment": "test",
+    "generatedAt": "2026-06-08T02:52:44.219Z"
+  },
+  "result": {
+    "id": "suite-1780887164202-vas4hor",
+    "title": "订单流程测试",
+    "startTime": 1780887164203,
+    "endTime": 1780887164205,
+    "duration": 2,
+    "total": 4,
+    "passed": 3,
+    "failed": 1,
+    "skipped": 0,
+    "results": [
+      {
+        "meta": {
+          "id": "tc-1780887164203-flgbext",
+          "title": "用户登录测试",
+          "description": "测试用户登录功能是否正常",
+          "tags": [
+            "登录",
+            "用户"
+          ],
+          "priority": "high",
+          "concurrent": false,
+          "skip": false,
+          "only": false
+        },
+        "status": "passed",
+        "startTime": 1780887164203,
+        "endTime": 1780887164204,
+        "duration": 1,
+        "steps": [
+          {
+            "id": "step-1-1780887164204",
+            "name": "输入用户名密码",
+            "startTime": 1780887164204,
+            "status": "passed",
+            "output": {
+              "username": "test_user",
+              "password": "******"
+            },
+            "endTime": 1780887164204,
+            "duration": 0
+          },
+          {
+            "id": "step-2-1780887164204",
+            "name": "验证登录结果",
+            "startTime": 1780887164204,
+            "status": "passed",
+            "output": {
+              "success": true,
+              "token": "mock_token_123"
+            },
+            "endTime": 1780887164204,
+            "duration": 0
+          }
+        ],
+        "retryCount": 0,
+        "screenshots": []
+      },
+      {
+        "meta": {
+          "id": "tc-1780887164203-ja6710y",
+          "title": "创建订单测试",
+          "description": "测试创建订单接口",
+          "tags": [
+            "订单",
+            "创建"
+          ],
+          "priority": "critical",
+          "concurrent": false,
+          "skip": false,
+          "only": false
+        },
+        "status": "passed",
+        "startTime": 1780887164204,
+        "endTime": 1780887164204,
+        "duration": 0,
+        "steps": [
+          {
+            "id": "step-1-1780887164204",
+            "name": "准备订单数据",
+            "startTime": 1780887164204,
+            "status": "passed",
+            "output": {
+              "id": "ord_mq4m8ieixz2u1r",
+              "orderNo": "2026060881170053",
+              "userId": "usr_mq4m8iei3u7otj",
+              "items": [
+                {
+                  "id": "item_mq4m8ieixkwvrd",
+                  "productId": "prod_007",
+                  "productName": "笔记本电脑支架",
+                  "price": 159,
+                  "quantity": 1,
+                  "subtotal": 159
+                }
+              ],
+              "totalAmount": 159,
+              "status": "paid",
+              "paymentMethod": "bank",
+              "shippingAddress": {
+                "name": "用户zn",
+                "phone": "13870580441",
+                "province": "山东省",
+                "city": "青岛市",
+                "district": "西城区",
+                "address": "西城区某某路41号17栋11单元",
+                "zipCode": "528874"
+              },
+              "createdAt": "2026-05-17T16:11:19.460Z",
+              "paidAt": "2026-05-17T16:44:19.460Z",
+              "remark": "测试订单，请勿发货"
+            },
+            "endTime": 1780887164204,
+            "duration": 0
+          },
+          {
+            "id": "step-2-1780887164204",
+            "name": "提交订单",
+            "startTime": 1780887164204,
+            "status": "passed",
+            "output": {
+              "orderId": "ord_mq4m8ieixz2u1r",
+              "status": "created"
+            },
+            "endTime": 1780887164204,
+            "duration": 0
+          },
+          {
+            "id": "step-3-1780887164204",
+            "name": "验证订单状态",
+            "startTime": 1780887164204,
+            "status": "passed",
+            "endTime": 1780887164204,
+            "duration": 0
+          }
+        ],
+        "retryCount": 0,
+        "screenshots": []
+      },
+      {
+        "meta": {
+          "id": "tc-1780887164203-ewpyg8v",
+          "title": "查询订单列表测试",
+          "description": "测试订单列表查询",
+          "tags": [
+            "订单",
+            "查询"
+          ],
+          "priority": "medium",
+          "concurrent": false,
+          "skip": false,
+          "only": false
+        },
+        "status": "passed",
+        "startTime": 1780887164204,
+        "endTime": 1780887164205,
+        "duration": 1,
+        "steps": [
+          {
+            "id": "step-1-1780887164204",
+            "name": "查询订单列表",
+            "startTime": 1780887164204,
+            "status": "passed",
+            "output": {
+              "total": 10,
+              "list": [
+                {
+                  "id": "ord_mq4m8ieixz2u1r",
+                  "orderNo": "2026060881170053",
+                  "userId": "usr_mq4m8iei3u7otj",
+                  "items": [
+                    {
+                      "id": "item_mq4m8ieixkwvrd",
+                      "productId": "prod_007",
+                      "productName": "笔记本电脑支架",
+                      "price": 159,
+                      "quantity": 1,
+                      "subtotal": 159
+                    }
+                  ],
+                  "totalAmount": 159,
+                  "status": "paid",
+                  "paymentMethod": "bank",
+                  "shippingAddress": {
+                    "name": "用户zn",
+                    "phone": "13870580441",
+                    "province": "山东省",
+                    "city": "青岛市",
+                    "district": "西城区",
+                    "address": "西城区某某路41号17栋11单元",
+                    "zipCode": "528874"
+                  },
+                  "createdAt": "2026-05-17T16:11:19.460Z",
+                  "paidAt": "2026-05-17T16:44:19.460Z",
+                  "remark": "测试订单，请勿发货"
+                },
+                {
+                  "id": "ord_mq4m8ieical2px",
+                  "orderNo": "2026060844424863",
+                  "userId": "usr_mq4m8ieirwxjdn",
+                  "items": [
+                    {
+                      "id": "item_mq4m8ieiio52uy",
+                      "productId": "prod_005",
+                      "productName": "USB-C 扩展坞",
+                      "price": 259,
+                      "quantity": 3,
+                      "subtotal": 777
+                    },
+                    {
+                      "id": "item_mq4m8ieihsgy81",
+                      "productId": "prod_001",
+                      "productName": "无线蓝牙耳机",
+                      "price": 299,
+                      "quantity": 3,
+                      "subtotal": 897
+                    },
+                    {
+                      "id": "item_mq4m8ieio622pm",
+                      "productId": "prod_002",
+                      "productName": "机械键盘",
+                      "price": 459,
+                      "quantity": 1,
+                      "subtotal": 459
+                    },
+                    {
+                      "id": "item_mq4m8ieiox5gwr",
+                      "productId": "prod_008",
+                      "productName": "桌面收纳盒",
+                      "price": 89,
+                      "quantity": 2,
+                      "subtotal": 178
+                    }
+                  ],
+                  "totalAmount": 2311,
+                  "status": "paid",
+                  "paymentMethod": "card",
+                  "shippingAddress": {
+                    "name": "用户cb",
+                    "phone": "13871749501",
+                    "province": "浙江省",
+                    "city": "绍兴市",
+                    "district": "南山区",
+                    "address": "南山区某某路516号16栋24单元",
+                    "zipCode": "304056"
+                  },
+                  "createdAt": "2026-05-21T08:44:00.802Z",
+                  "paidAt": "2026-05-21T09:35:00.802Z",
+                  "remark": "测试订单，请勿发货"
+                },
+                {
+                  "id": "ord_mq4m8ieipxgpzp",
+                  "orderNo": "2026060893667149",
+                  "userId": "usr_mq4m8ieipgfgst",
+                  "items": [
+                    {
+                      "id": "item_mq4m8iei56mmgt",
+                      "productId": "prod_007",
+                      "productName": "笔记本电脑支架",
+                      "price": 159,
+                      "quantity": 1,
+                      "subtotal": 159
+                    },
+                    {
+                      "id": "item_mq4m8ieieyi24a",
+                      "productId": "prod_001",
+                      "productName": "无线蓝牙耳机",
+                      "price": 299,
+                      "quantity": 3,
+                      "subtotal": 897
+                    },
+                    {
+                      "id": "item_mq4m8ieiq528c2",
+                      "productId": "prod_008",
+                      "productName": "桌面收纳盒",
+                      "price": 89,
+                      "quantity": 1,
+                      "subtotal": 89
+                    }
+                  ],
+                  "totalAmount": 1145,
+                  "status": "paid",
+                  "paymentMethod": "card",
+                  "shippingAddress": {
+                    "name": "用户bf",
+                    "phone": "13819865170",
+                    "province": "浙江省",
+                    "city": "杭州市",
+                    "district": "东城区",
+                    "address": "东城区某某路11号21栋28单元",
+                    "zipCode": "367488"
+                  },
+                  "createdAt": "2026-05-10T23:12:13.474Z",
+                  "paidAt": "2026-05-10T23:23:13.474Z",
+                  "remark": "测试订单，请勿发货"
+                },
+                {
+                  "id": "ord_mq4m8ieih4dl56",
+                  "orderNo": "2026060885943556",
+                  "userId": "usr_mq4m8iei83cd3a",
+                  "items": [
+                    {
+                      "id": "item_mq4m8ieipc9h9p",
+                      "productId": "prod_006",
+                      "productName": "移动固态硬盘 1TB",
+                      "price": 599,
+                      "quantity": 3,
+                      "subtotal": 1797
+                    }
+                  ],
+                  "totalAmount": 1797,
+                  "status": "cancelled",
+                  "paymentMethod": "alipay",
+                  "shippingAddress": {
+                    "name": "用户sv",
+                    "phone": "13877185684",
+                    "province": "上海市",
+                    "city": "上海市",
+                    "district": "东城区",
+                    "address": "东城区某某路14号28栋11单元",
+                    "zipCode": "204525"
+                  },
+                  "createdAt": "2026-06-04T21:48:31.889Z"
+                },
+                {
+                  "id": "ord_mq4m8ieigo0gvo",
+                  "orderNo": "2026060815726426",
+                  "userId": "usr_mq4m8ieire8p23",
+                  "items": [
+                    {
+                      "id": "item_mq4m8ieikn9xhn",
+                      "productId": "prod_001",
+                      "productName": "无线蓝牙耳机",
+                      "price": 299,
+                      "quantity": 1,
+                      "subtotal": 299
+                    },
+                    {
+                      "id": "item_mq4m8ieia949zx",
+                      "productId": "prod_004",
+                      "productName": "显示器支架",
+                      "price": 399,
+                      "quantity": 3,
+                      "subtotal": 1197
+                    },
+                    {
+                      "id": "item_mq4m8iei66m4i2",
+                      "productId": "prod_002",
+                      "productName": "机械键盘",
+                      "price": 459,
+                      "quantity": 1,
+                      "subtotal": 459
+                    }
+                  ],
+                  "totalAmount": 1955,
+                  "status": "paid",
+                  "paymentMethod": "wechat",
+                  "shippingAddress": {
+                    "name": "用户cc",
+                    "phone": "13891382817",
+                    "province": "江苏省",
+                    "city": "苏州市",
+                    "district": "东城区",
+                    "address": "东城区某某路228号30栋28单元",
+                    "zipCode": "805773"
+                  },
+                  "createdAt": "2026-05-28T07:05:48.204Z",
+                  "paidAt": "2026-05-28T07:53:48.204Z",
+                  "remark": "测试订单，请勿发货"
+                },
+                {
+                  "id": "ord_mq4m8ieimikm6j",
+                  "orderNo": "2026060805444009",
+                  "userId": "usr_mq4m8ieij33ftq",
+                  "items": [
+                    {
+                      "id": "item_mq4m8ieicgy9f6",
+                      "productId": "prod_001",
+                      "productName": "无线蓝牙耳机",
+                      "price": 299,
+                      "quantity": 1,
+                      "subtotal": 299
+                    },
+                    {
+                      "id": "item_mq4m8ieiad3zll",
+                      "productId": "prod_002",
+                      "productName": "机械键盘",
+                      "price": 459,
+                      "quantity": 1,
+                      "subtotal": 459
+                    }
+                  ],
+                  "totalAmount": 758,
+                  "status": "pending",
+                  "paymentMethod": "alipay",
+                  "shippingAddress": {
+                    "name": "用户yn",
+                    "phone": "13884653216",
+                    "province": "江苏省",
+                    "city": "常州市",
+                    "district": "天河区",
+                    "address": "天河区某某路670号24栋22单元",
+                    "zipCode": "295193"
+                  },
+                  "createdAt": "2026-05-24T18:22:18.816Z"
+                },
+                {
+                  "id": "ord_mq4m8iejp3nij6",
+                  "orderNo": "2026060862216976",
+                  "userId": "usr_mq4m8iejxlxeow",
+                  "items": [
+                    {
+                      "id": "item_mq4m8iej6c7wgm",
+                      "productId": "prod_007",
+                      "productName": "笔记本电脑支架",
+                      "price": 159,
+                      "quantity": 2,
+                      "subtotal": 318
+                    },
+                    {
+                      "id": "item_mq4m8iejbitihm",
+                      "productId": "prod_001",
+                      "productName": "无线蓝牙耳机",
+                      "price": 299,
+                      "quantity": 3,
+                      "subtotal": 897
+                    },
+                    {
+                      "id": "item_mq4m8iejshwx4c",
+                      "productId": "prod_005",
+                      "productName": "USB-C 扩展坞",
+                      "price": 259,
+                      "quantity": 1,
+                      "subtotal": 259
+                    },
+                    {
+                      "id": "item_mq4m8iejzxqs2d",
+                      "productId": "prod_006",
+                      "productName": "移动固态硬盘 1TB",
+                      "price": 599,
+                      "quantity": 3,
+                      "subtotal": 1797
+                    }
+                  ],
+                  "totalAmount": 3271,
+                  "status": "pending",
+                  "paymentMethod": "wechat",
+                  "shippingAddress": {
+                    "name": "用户qr",
+                    "phone": "13802152287",
+                    "province": "上海市",
+                    "city": "上海市",
+                    "district": "西城区",
+                    "address": "西城区某某路976号30栋25单元",
+                    "zipCode": "513654"
+                  },
+                  "createdAt": "2026-06-07T10:40:53.003Z"
+                },
+                {
+                  "id": "ord_mq4m8iejdctc49",
+                  "orderNo": "2026060872749651",
+                  "userId": "usr_mq4m8iejqvlisw",
+                  "items": [
+                    {
+                      "id": "item_mq4m8iejl8mrat",
+                      "productId": "prod_002",
+                      "productName": "机械键盘",
+                      "price": 459,
+                      "quantity": 3,
+                      "subtotal": 1377
+                    },
+                    {
+                      "id": "item_mq4m8iejn6sgwl",
+                      "productId": "prod_001",
+                      "productName": "无线蓝牙耳机",
+                      "price": 299,
+                      "quantity": 2,
+                      "subtotal": 598
+                    },
+                    {
+                      "id": "item_mq4m8iejyew489",
+                      "productId": "prod_003",
+                      "productName": "游戏鼠标",
+                      "price": 189,
+                      "quantity": 3,
+                      "subtotal": 567
+                    },
+                    {
+                      "id": "item_mq4m8iej6c4ap7",
+                      "productId": "prod_007",
+                      "productName": "笔记本电脑支架",
+                      "price": 159,
+                      "quantity": 2,
+                      "subtotal": 318
+                    },
+                    {
+                      "id": "item_mq4m8iejpox5f3",
+                      "productId": "prod_008",
+                      "productName": "桌面收纳盒",
+                      "price": 89,
+                      "quantity": 3,
+                      "subtotal": 267
+                    }
+                  ],
+                  "totalAmount": 3127,
+                  "status": "paid",
+                  "paymentMethod": "alipay",
+                  "shippingAddress": {
+                    "name": "用户pr",
+                    "phone": "13801530184",
+                    "province": "浙江省",
+                    "city": "温州市",
+                    "district": "福田区",
+                    "address": "福田区某某路642号19栋9单元",
+                    "zipCode": "967004"
+                  },
+                  "createdAt": "2026-05-27T00:35:10.180Z",
+                  "paidAt": "2026-05-27T01:19:10.180Z",
+                  "remark": "测试订单，请勿发货"
+                },
+                {
+                  "id": "ord_mq4m8iejc1wl49",
+                  "orderNo": "2026060805402762",
+                  "userId": "usr_mq4m8iejr5tgdo",
+                  "items": [
+                    {
+                      "id": "item_mq4m8iejmdi83v",
+                      "productId": "prod_008",
+                      "productName": "桌面收纳盒",
+                      "price": 89,
+                      "quantity": 3,
+                      "subtotal": 267
+                    },
+                    {
+                      "id": "item_mq4m8iejx34hzi",
+                      "productId": "prod_003",
+                      "productName": "游戏鼠标",
+                      "price": 189,
+                      "quantity": 3,
+                      "subtotal": 567
+                    },
+                    {
+                      "id": "item_mq4m8iejd3daq6",
+                      "productId": "prod_002",
+                      "productName": "机械键盘",
+                      "price": 459,
+                      "quantity": 1,
+                      "subtotal": 459
+                    }
+                  ],
+                  "totalAmount": 1293,
+                  "status": "shipped",
+                  "paymentMethod": "wechat",
+                  "shippingAddress": {
+                    "name": "用户zs",
+                    "phone": "13803395017",
+                    "province": "北京市",
+                    "city": "北京市",
+                    "district": "朝阳区",
+                    "address": "朝阳区某某路718号5栋23单元",
+                    "zipCode": "064331"
+                  },
+                  "createdAt": "2026-05-24T07:52:22.949Z",
+                  "paidAt": "2026-05-24T08:36:22.949Z",
+                  "shippedAt": "2026-05-25T19:36:22.949Z"
+                },
+                {
+                  "id": "ord_mq4m8iej7lhkr5",
+                  "orderNo": "2026060875707545",
+                  "userId": "usr_mq4m8iej33qk46",
+                  "items": [
+                    {
+                      "id": "item_mq4m8iejb9y9u2",
+                      "productId": "prod_005",
+                      "productName": "USB-C 扩展坞",
+                      "price": 259,
+                      "quantity": 1,
+                      "subtotal": 259
+                    },
+                    {
+                      "id": "item_mq4m8iejht5vtj",
+                      "productId": "prod_007",
+                      "productName": "笔记本电脑支架",
+                      "price": 159,
+                      "quantity": 1,
+                      "subtotal": 159
+                    }
+                  ],
+                  "totalAmount": 418,
+                  "status": "delivered",
+                  "paymentMethod": "wechat",
+                  "shippingAddress": {
+                    "name": "用户tw",
+                    "phone": "13885522617",
+                    "province": "江苏省",
+                    "city": "苏州市",
+                    "district": "海淀区",
+                    "address": "海淀区某某路841号2栋22单元",
+                    "zipCode": "656147"
+                  },
+                  "createdAt": "2026-05-09T11:22:44.884Z",
+                  "paidAt": "2026-05-09T11:52:44.884Z",
+                  "shippedAt": "2026-05-11T01:52:44.884Z",
+                  "deliveredAt": "2026-05-11T16:52:44.884Z"
+                }
+              ]
+            },
+            "endTime": 1780887164204,
+            "duration": 0
+          },
+          {
+            "id": "step-2-1780887164204",
+            "name": "验证返回数据",
+            "startTime": 1780887164204,
+            "status": "passed",
+            "endTime": 1780887164204,
+            "duration": 0
+          }
+        ],
+        "retryCount": 0,
+        "screenshots": []
+      },
+      {
+        "meta": {
+          "id": "tc-1780887164203-mgh7vfi",
+          "title": "会失败的测试用例",
+          "description": "用于演示失败场景",
+          "tags": [
+            "演示"
+          ],
+          "priority": "low",
+          "retries": 2,
+          "concurrent": false,
+          "skip": false,
+          "only": false
+        },
+        "status": "failed",
+        "startTime": 1780887164204,
+        "endTime": 1780887164205,
+        "duration": 1,
+        "steps": [
+          {
+            "id": "step-1-1780887164205",
+            "name": "执行操作",
+            "startTime": 1780887164205,
+            "status": "failed",
+            "endTime": 1780887164205,
+            "duration": 0,
+            "error": {
+              "name": "Error",
+              "message": "模拟测试失败",
+              "stack": "Error: 模拟测试失败\n    at D:\\trae-bz\\TraeProjects\\49\\dist\\examples\\basic-usage.js:213:19\n    at TestContextImpl.step (D:\\trae-bz\\TraeProjects\\49\\dist\\core\\context.js:40:34)\n    at TestCase._fn (D:\\trae-bz\\TraeProjects\\49\\dist\\examples\\basic-usage.js:212:19)\n    at D:\\trae-bz\\TraeProjects\\49\\dist\\core\\test-case.js:98:34\n    at new Promise (<anonymous>)\n    at TestCase._runWithTimeout (D:\\trae-bz\\TraeProjects\\49\\dist\\core\\test-case.js:92:16)\n    at TestCase.run (D:\\trae-bz\\TraeProjects\\49\\dist\\core\\test-case.js:43:41)\n    at async runNext (D:\\trae-bz\\TraeProjects\\49\\dist\\core\\test-runner.js:37:32)\n    at async Promise.all (index 1)\n    at async TestRunner.run (D:\\trae-bz\\TraeProjects\\49\\dist\\core\\test-runner.js:56:9)"
+            }
+          }
+        ],
+        "error": {
+          "name": "Error",
+          "message": "模拟测试失败",
+          "stack": "Error: 模拟测试失败\n    at D:\\trae-bz\\TraeProjects\\49\\dist\\examples\\basic-usage.js:213:19\n    at TestContextImpl.step (D:\\trae-bz\\TraeProjects\\49\\dist\\core\\context.js:40:34)\n    at TestCase._fn (D:\\trae-bz\\TraeProjects\\49\\dist\\examples\\basic-usage.js:212:19)\n    at D:\\trae-bz\\TraeProjects\\49\\dist\\core\\test-case.js:98:34\n    at new Promise (<anonymous>)\n    at TestCase._runWithTimeout (D:\\trae-bz\\TraeProjects\\49\\dist\\core\\test-case.js:92:16)\n    at TestCase.run (D:\\trae-bz\\TraeProjects\\49\\dist\\core\\test-case.js:43:41)\n    at async runNext (D:\\trae-bz\\TraeProjects\\49\\dist\\core\\test-runner.js:37:32)\n    at async Promise.all (index 1)\n    at async TestRunner.run (D:\\trae-bz\\TraeProjects\\49\\dist\\core\\test-runner.js:56:9)"
+        },
+        "retryCount": 2,
+        "screenshots": []
+      }
+    ]
+  }
+}

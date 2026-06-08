@@ -1,0 +1,27 @@
+{
+  "name": "auto-test-platform",
+  "version": "1.0.0",
+  "description": "自动化测试平台类库 - 提供用例编排、测试数据生成、步骤记录、接口断言等能力",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "tsc && node dist/examples/basic-usage.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "testing",
+    "automation",
+    "test-framework",
+    "test-platform"
+  ],
+  "author": "AutoTest Platform Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "axios": "^1.6.0"
+  }
+}

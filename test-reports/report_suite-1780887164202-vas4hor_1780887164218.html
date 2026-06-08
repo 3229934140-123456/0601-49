@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>订单系统测试报告</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #333; padding: 20px; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .header { background: #fff; border-radius: 8px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .header h1 { font-size: 24px; margin-bottom: 8px; }
+    .header .meta { color: #666; font-size: 14px; }
+    .summary { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 20px; }
+    .summary-card { background: #fff; border-radius: 8px; padding: 20px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .summary-card .value { font-size: 32px; font-weight: bold; margin-bottom: 4px; }
+    .summary-card .label { font-size: 14px; color: #666; }
+    .summary-card.passed .value { color: #27ae60; }
+    .summary-card.failed .value { color: #e74c3c; }
+    .summary-card.skipped .value { color: #95a5a6; }
+    .summary-card.total .value { color: #3498db; }
+    .summary-card.rate .value { color: #e74c3c; }
+    .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; color: #fff; }
+    .status-badge.passed { background: #27ae60; }
+    .status-badge.failed { background: #e74c3c; }
+    .status-badge.skipped { background: #95a5a6; }
+    .status-badge.timeout { background: #e67e22; }
+    .test-cases { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .test-cases h2 { font-size: 18px; margin-bottom: 16px; }
+    .test-case { border: 1px solid #e1e4e8; border-radius: 6px; margin-bottom: 12px; overflow: hidden; }
+    .test-case-header { padding: 16px; background: #fafbfc; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+    .test-case-header:hover { background: #f0f3f6; }
+    .test-case-title { display: flex; align-items: center; gap: 12px; }
+    .test-case-title h3 { font-size: 16px; }
+    .test-case-meta { font-size: 12px; color: #666; }
+    .test-case-body { padding: 16px; display: none; border-top: 1px solid #e1e4e8; }
+    .test-case.open .test-case-body { display: block; }
+    .steps { margin-top: 12px; }
+    .step { padding: 12px; border-left: 3px solid #ddd; margin-bottom: 8px; background: #fafbfc; }
+    .step.passed { border-left-color: #27ae60; }
+    .step.failed { border-left-color: #e74c3c; }
+    .step-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .step-name { font-weight: 600; }
+    .step-duration { font-size: 12px; color: #999; }
+    .step-details { font-size: 13px; color: #666; }
+    .error-box { background: #fee; border: 1px solid #fcc; border-radius: 4px; padding: 12px; margin-top: 8px; font-family: monospace; font-size: 12px; white-space: pre-wrap; word-break: break-all; }
+    .tags { display: flex; gap: 6px; flex-wrap: wrap; }
+    .tag { background: #e1ecf4; color: #39739d; padding: 2px 8px; border-radius: 3px; font-size: 11px; }
+    .priority { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; }
+    .priority.critical { background: #ffebee; color: #c62828; }
+    .priority.high { background: #fff3e0; color: #e65100; }
+    .priority.medium { background: #fff8e1; color: #f57f17; }
+    .priority.low { background: #e8f5e9; color: #2e7d32; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>订单系统测试报告</h1>
+      <div class="meta">
+        项目: 订单系统 | 环境: test | 
+        套件: 订单流程测试 | 生成时间: 2026/6/8 10:52:44
+      </div>
+    </div>
+
+    <div class="summary">
+      <div class="summary-card total">
+        <div class="value">4</div>
+        <div class="label">总数</div>
+      </div>
+      <div class="summary-card passed">
+        <div class="value">3</div>
+        <div class="label">通过</div>
+      </div>
+      <div class="summary-card failed">
+        <div class="value">1</div>
+        <div class="label">失败</div>
+      </div>
+      <div class="summary-card skipped">
+        <div class="value">0</div>
+        <div class="label">跳过</div>
+      </div>
+      <div class="summary-card rate">
+        <div class="value">75.0%</div>
+        <div class="label">通过率</div>
+      </div>
+    </div>
+
+    <div class="test-cases">
+      <h2>测试用例详情</h2>
+      
+    <div class="test-case passed">
+      <div class="test-case-header">
+        <div class="test-case-title">
+          <span class="status-badge passed">通过</span>
+          <h3>用户登录测试</h3>
+          <span class="priority high">high</span>
+        </div>
+        <div class="test-case-meta">
+          1ms | 重试: 0次
+        </div>
+      </div>
+      <div class="test-case-body">
+        <div class="tags"><span class="tag">登录</span><span class="tag">用户</span></div>
+        <p style="margin-top: 8px; color: #666;">测试用户登录功能是否正常</p>
+        
+        <div class="steps">
+          <h4 style="margin-bottom: 8px; font-size: 14px;">步骤 (2)</h4>
+          
+    <div class="step passed">
+      <div class="step-header">
+        <span class="step-name">输入用户名密码</span>
+        <span class="step-duration">0ms</span>
+      </div>
+      
+      
+    </div>
+    <div class="step passed">
+      <div class="step-header">
+        <span class="step-name">验证登录结果</span>
+        <span class="step-duration">0ms</span>
+      </div>
+      
+      
+    </div>
+        </div>
+      </div>
+    </div>
+    <div class="test-case passed">
+      <div class="test-case-header">
+        <div class="test-case-title">
+          <span class="status-badge passed">通过</span>
+          <h3>创建订单测试</h3>
+          <span class="priority critical">critical</span>
+        </div>
+        <div class="test-case-meta">
+          0ms | 重试: 0次
+        </div>
+      </div>
+      <div class="test-case-body">
+        <div class="tags"><span class="tag">订单</span><span class="tag">创建</span></div>
+        <p style="margin-top: 8px; color: #666;">测试创建订单接口</p>
+        
+        <div class="steps">
+          <h4 style="margin-bottom: 8px; font-size: 14px;">步骤 (3)</h4>
+          
+    <div class="step passed">
+      <div class="step-header">
+        <span class="step-name">准备订单数据</span>
+        <span class="step-duration">0ms</span>
+      </div>
+      
+      
+    </div>
+    <div class="step passed">
+      <div class="step-header">
+        <span class="step-name">提交订单</span>
+        <span class="step-duration">0ms</span>
+      </div>
+      
+      
+    </div>
+    <div class="step passed">
+      <div class="step-header">
+        <span class="step-name">验证订单状态</span>
+        <span class="step-duration">0ms</span>
+      </div>
+      
+      
+    </div>
+        </div>
+      </div>
+    </div>
+    <div class="test-case passed">
+      <div class="test-case-header">
+        <div class="test-case-title">
+          <span class="status-badge passed">通过</span>
+          <h3>查询订单列表测试</h3>
+          <span class="priority medium">medium</span>
+        </div>
+        <div class="test-case-meta">
+          1ms | 重试: 0次
+        </div>
+      </div>
+      <div class="test-case-body">
+        <div class="tags"><span class="tag">订单</span><span class="tag">查询</span></div>
+        <p style="margin-top: 8px; color: #666;">测试订单列表查询</p>
+        
+        <div class="steps">
+          <h4 style="margin-bottom: 8px; font-size: 14px;">步骤 (2)</h4>
+          
+    <div class="step passed">
+      <div class="step-header">
+        <span class="step-name">查询订单列表</span>
+        <span class="step-duration">0ms</span>
+      </div>
+      
+      
+    </div>
+    <div class="step passed">
+      <div class="step-header">
+        <span class="step-name">验证返回数据</span>
+        <span class="step-duration">0ms</span>
+      </div>
+      
+      
+    </div>
+        </div>
+      </div>
+    </div>
+    <div class="test-case failed">
+      <div class="test-case-header">
+        <div class="test-case-title">
+          <span class="status-badge failed">失败</span>
+          <h3>会失败的测试用例</h3>
+          <span class="priority low">low</span>
+        </div>
+        <div class="test-case-meta">
+          1ms | 重试: 2次
+        </div>
+      </div>
+      <div class="test-case-body">
+        <div class="tags"><span class="tag">演示</span></div>
+        <p style="margin-top: 8px; color: #666;">用于演示失败场景</p>
+        
+      <div class="error-box">
+        <strong>Error: 模拟测试失败</strong>
+        
+Error: 模拟测试失败
+    at D:\trae-bz\TraeProjects\49\dist\examples\basic-usage.js:213:19
+    at TestContextImpl.step (D:\trae-bz\TraeProjects\49\dist\core\context.js:40:34)
+    at TestCase._fn (D:\trae-bz\TraeProjects\49\dist\examples\basic-usage.js:212:19)
+    at D:\trae-bz\TraeProjects\49\dist\core\test-case.js:98:34
+    at new Promise (<anonymous>)
+    at TestCase._runWithTimeout (D:\trae-bz\TraeProjects\49\dist\core\test-case.js:92:16)
+    at TestCase.run (D:\trae-bz\TraeProjects\49\dist\core\test-case.js:43:41)
+    at async runNext (D:\trae-bz\TraeProjects\49\dist\core\test-runner.js:37:32)
+    at async Promise.all (index 1)
+    at async TestRunner.run (D:\trae-bz\TraeProjects\49\dist\core\test-runner.js:56:9)
+      </div>
+    
+        <div class="steps">
+          <h4 style="margin-bottom: 8px; font-size: 14px;">步骤 (1)</h4>
+          
+    <div class="step failed">
+      <div class="step-header">
+        <span class="step-name">执行操作</span>
+        <span class="step-duration">0ms</span>
+      </div>
+      
+      
+      <div class="error-box">
+        Error: 模拟测试失败
+      </div>
+    
+    </div>
+        </div>
+      </div>
+    </div>
+    </div>
+  </div>
+  <script>
+    document.querySelectorAll('.test-case-header').forEach(header => {
+      header.addEventListener('click', () => {
+        header.parentElement.classList.toggle('open');
+      });
+    });
+  </script>
+</body>
+</html>
