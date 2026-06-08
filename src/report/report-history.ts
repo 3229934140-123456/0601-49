@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { TestSuiteResult, ReportHistoryEntry, ReportHistoryIndex, GeneratedReport } from '../core/types';
+import { TestSuiteResult, ReportHistoryEntry, ReportHistoryIndex } from '../core/types';
+import { GeneratedReport } from './report-generator';
 
 export interface ReportHistoryConfig {
   outputDir?: string;

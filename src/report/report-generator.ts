@@ -103,6 +103,18 @@ export class ReportGenerator {
     return reports;
   }
 
+  get historyManager(): ReportHistoryManager | undefined {
+    return this._historyManager;
+  }
+
+  getHistory() {
+    return this._historyManager?.getHistory();
+  }
+
+  getLatestReport() {
+    return this._historyManager?.getLatestReport();
+  }
+
   private _generateHtmlReport(result: TestSuiteResult, reportId: string): GeneratedReport {
     const html = this._buildHtmlReport(result);
     const filePath = path.join(this._config.outputDir!, `${reportId}.html`);
@@ -473,11 +485,11 @@ export class ReportGenerator {
           <div class="assert-diff">
             <div>
               <div class="step-section-title" style="color: #2e7d32;">预期值</div>
-              <div class="step-section-content expected">${this._formatJson(step.error.expected)}</div>
+              <div class="step-section-content expected">${this._formatJson(step.error!.expected)}</div>
             </div>
             <div>
               <div class="step-section-title" style="color: #c62828;">实际值</div>
-              <div class="step-section-content actual">${this._formatJson(step.error.actual)}</div>
+              <div class="step-section-content actual">${this._formatJson(step.error!.actual)}</div>
             </div>
           </div>
         </div>`

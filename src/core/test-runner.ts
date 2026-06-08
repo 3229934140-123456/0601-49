@@ -1,11 +1,10 @@
 import { TestSuite } from './test-suite';
-import { TestSuiteResult, TestSuiteConfig, TestResult, ResourceLock } from './types';
+import { TestSuiteResult, TestSuiteConfig, TestResult, ResourceLock, TestPreviewResult, TestPreviewItem } from './types';
 import { TestCase } from './test-case';
 
 export class TestRunner {
   private config: Required<TestSuiteConfig>;
   private _resourceLocks: Map<string, ResourceLock> = new Map();
-  private _runningLock: object = {};
 
   constructor(config: TestSuiteConfig = {}) {
     this.config = {
@@ -20,6 +19,96 @@ export class TestRunner {
     };
   }
 
+  preview(suite: TestSuite): TestPreviewResult {
+    const allTestCases = suite.getTestCases();
+    let filteredCases = suite.filterByTags(this.config.tags, this.config.excludeTags);
+
+    const onlyTests = filteredCases.filter(tc => tc.meta.only);
+    if (onlyTests.length > 0) {
+      filteredCases = onlyTests;
+    }
+
+    const skippedByTagCount = allTestCases.length - filteredCases.length;
+
+    const skippedCases = filteredCases.filter(tc => tc.meta.skip);
+    const runnableCases = filteredCases.filter(tc => !tc.meta.skip);
+
+    const serialTags = this.config.serialTags;
+    const items: TestPreviewItem[] = [];
+    const allResourceLocks = new Set<string>();
+    let serialCount = 0;
+    let parallelCount = 0;
+
+    for (const tc of allTestCases) {
+      const inFiltered = filteredCases.some(f => f.meta.id === tc.meta.id);
+      const isSkipped = tc.meta.skip;
+
+      let willRun = inFiltered && !isSkipped;
+      let skipReason: string | undefined;
+
+      if (!inFiltered) {
+        skipReason = '标签不匹配';
+      } else if (isSkipped) {
+        skipReason = 'skip 标记';
+      }
+
+      const hasSerialTag = serialTags.some(tag => tc.hasTag(tag));
+      const hasResourceLocks = tc.meta.resourceLocks && tc.meta.resourceLocks.length > 0;
+      const isConcurrentDisabled = tc.meta.concurrent === false;
+
+      let isSerial = false;
+      let serialReason: string | undefined;
+
+      if (hasSerialTag) {
+        isSerial = true;
+        serialReason = '串行标签';
+      } else if (isConcurrentDisabled) {
+        isSerial = true;
+        serialReason = '用例禁用并发';
+      }
+
+      if (willRun) {
+        if (isSerial) {
+          serialCount++;
+        } else {
+          parallelCount++;
+        }
+      }
+
+      if (hasResourceLocks && tc.meta.resourceLocks) {
+        for (const lock of tc.meta.resourceLocks) {
+          allResourceLocks.add(lock);
+        }
+      }
+
+      items.push({
+        id: tc.meta.id,
+        title: tc.meta.title,
+        tags: tc.meta.tags,
+        priority: tc.meta.priority,
+        willRun,
+        skipReason,
+        isSerial,
+        serialReason,
+        resourceLocks: tc.meta.resourceLocks,
+        dataSet: tc.dataSet?.name,
+      });
+    }
+
+    return {
+      suiteTitle: suite.title,
+      total: allTestCases.length,
+      willRun: runnableCases.length,
+      skipped: skippedByTagCount + skippedCases.length,
+      skippedByTag: skippedByTagCount,
+      skippedBySkipFlag: skippedCases.length,
+      serialCount,
+      parallelCount,
+      resourceLocks: Array.from(allResourceLocks),
+      items,
+    };
+  }
+
   async run(suite: TestSuite): Promise<TestSuiteResult> {
     const startTime = Date.now();
     const allTestCases = suite.getTestCases();
@@ -30,6 +119,9 @@ export class TestRunner {
     if (onlyTests.length > 0) {
       testCases = onlyTests;
     }
+
+    const filteredByTags = allTestCases.length !== testCases.length;
+    const originalTotal = allTestCases.length;
 
     const skippedCases = testCases.filter(tc => tc.meta.skip);
     const runnableCases = testCases.filter(tc => !tc.meta.skip);
@@ -48,10 +140,9 @@ export class TestRunner {
 
     for (const tc of runnableCases) {
       const hasSerialTag = serialTags.some(tag => tc.hasTag(tag));
-      const hasResourceLocks = tc.meta.resourceLocks && tc.meta.resourceLocks.length > 0;
       const isConcurrentDisabled = tc.meta.concurrent === false;
 
-      if (hasSerialTag || hasResourceLocks || isConcurrentDisabled) {
+      if (hasSerialTag || isConcurrentDisabled) {
         serialCases.push(tc);
       } else {
         parallelCases.push(tc);
@@ -94,7 +185,10 @@ export class TestRunner {
     }
 
     if (!(this.config.bail && results.some(r => r.status === 'failed'))) {
-      const totalParallelConcurrency = Math.min(globalConcurrency, parallelCases.length);
+      const totalParallelConcurrency = Math.min(
+        Math.max(1, globalConcurrency),
+        parallelCases.length
+      );
       let currentIndex = 0;
 
       const runNext = async (): Promise<void> => {
@@ -129,7 +223,7 @@ export class TestRunner {
     const failed = results.filter(r => r.status === 'failed').length;
     const timeout = results.filter(r => r.status === 'timeout').length;
     const skipped = skippedDetails.length;
-    const total = allTestCases.length;
+    const total = testCases.length;
 
     const finalResults = this.config.includeSkippedInReport
       ? allResults
@@ -148,11 +242,14 @@ export class TestRunner {
       timeout,
       results: finalResults,
       skippedDetails: this.config.includeSkippedInReport ? skippedDetails : undefined,
+      filteredByTags,
+      originalTotal,
     };
   }
 
   private async _acquireLocks(keys: string[], testCaseId: string): Promise<void> {
-    const promises = keys.map(key => this._acquireLock(key, testCaseId));
+    const sortedKeys = [...keys].sort();
+    const promises = sortedKeys.map(key => this._acquireLock(key, testCaseId));
     await Promise.all(promises);
   }
 
@@ -178,7 +275,8 @@ export class TestRunner {
   }
 
   private _releaseLocks(keys: string[]): void {
-    for (const key of keys) {
+    const sortedKeys = [...keys].sort();
+    for (const key of sortedKeys) {
       this._releaseLock(key);
     }
   }

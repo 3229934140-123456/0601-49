@@ -17,7 +17,7 @@ import {
 } from '../index';
 
 async function main() {
-  console.log('=== 自动化测试平台示例 - 增强版 ===\n');
+  console.log('=== 自动化测试平台示例 - 增强版 V2 ===\n');
 
   exampleDataGenerator();
   console.log('');
@@ -32,6 +32,9 @@ async function main() {
   console.log('');
 
   await exampleParameterizedTests();
+  console.log('');
+
+  await examplePreviewAndTagFilter();
   console.log('');
 
   await exampleFullTestSuite();
@@ -221,8 +224,72 @@ async function exampleParameterizedTests() {
   console.log('  生成了', quickCases.length, '个参数化用例');
 }
 
+async function examplePreviewAndTagFilter() {
+  console.log('【6. 执行预览与标签筛选示例】');
+  console.log('');
+
+  const platform = new AutoTestPlatform({
+    runner: {
+      tags: ['订单'],
+      concurrency: 3,
+      serialTags: ['串行'],
+    },
+    report: {
+      outputDir: './test-reports',
+      enableHistory: true,
+    },
+  });
+
+  const suite = platform.createSuite('预览演示套件');
+
+  suite.addTestCases([
+    new TestCase(
+      { title: '用户登录', tags: ['登录', '用户'], priority: 'high' },
+      async () => {}
+    ),
+    new TestCase(
+      { title: '创建订单', tags: ['订单', '创建'], priority: 'critical', resourceLocks: ['order:1'] },
+      async () => {}
+    ),
+    new TestCase(
+      { title: '查询订单', tags: ['订单', '查询'], priority: 'medium', resourceLocks: ['order:2'] },
+      async () => {}
+    ),
+    new TestCase(
+      { title: '删除订单', tags: ['订单', '删除'], priority: 'high', skip: true },
+      async () => {}
+    ),
+    new TestCase(
+      { title: '串行任务', tags: ['串行', '任务'], priority: 'low' },
+      async () => {}
+    ),
+  ]);
+
+  const preview = platform.previewSuite(suite);
+
+  console.log('  套件:', preview.suiteTitle);
+  console.log('  总用例数:', preview.total);
+  console.log('  将会执行:', preview.willRun);
+  console.log('  总共跳过:', preview.skipped, '(标签过滤:', preview.skippedByTag, '+ skip标记:', preview.skippedBySkipFlag, ')');
+  console.log('  串行执行:', preview.serialCount, '个');
+  console.log('  并发执行:', preview.parallelCount, '个');
+  console.log('  涉及资源锁:', preview.resourceLocks.length > 0 ? preview.resourceLocks.join(', ') : '无');
+  console.log('');
+  console.log('  用例详情:');
+  preview.items.forEach(item => {
+    const icon = item.willRun ? '✅' : '⏭️';
+    const serialInfo = item.isSerial ? ` [串行: ${item.serialReason}]` : '';
+    const lockInfo = item.resourceLocks && item.resourceLocks.length > 0
+      ? ` [资源锁: ${item.resourceLocks.join(',')}]`
+      : '';
+    const skipInfo = item.skipReason ? ` (跳过原因: ${item.skipReason})` : '';
+    console.log(`    ${icon} ${item.title}${serialInfo}${lockInfo}${skipInfo}`);
+  });
+}
+
 async function exampleFullTestSuite() {
-  console.log('【6. 完整测试套件示例】');
+  console.log('');
+  console.log('【7. 完整测试套件示例】');
   console.log('');
 
   const platform = new AutoTestPlatform({
@@ -236,7 +303,7 @@ async function exampleFullTestSuite() {
     report: {
       outputDir: './test-reports',
       format: ['html', 'json', 'markdown'],
-      reportTitle: '订单系统测试报告 - 增强版',
+      reportTitle: '订单系统测试报告 - V2增强版',
       projectName: '订单系统',
       environment: 'test',
       shareable: true,
@@ -245,6 +312,8 @@ async function exampleFullTestSuite() {
       showScreenshots: true,
       showRetryRecords: true,
       showSkipped: true,
+      enableHistory: true,
+      maxHistory: 10,
     },
     notification: {
       onSuccess: true,
@@ -252,7 +321,7 @@ async function exampleFullTestSuite() {
     },
   });
 
-  const suite = platform.createSuite('订单流程测试 - 增强版');
+  const suite = platform.createSuite('订单流程测试 - V2增强版');
 
   const testAccounts = AccountGenerator.generateBatch(5);
   const testOrders = OrderGenerator.generateBatch(10);
@@ -291,11 +360,11 @@ async function exampleFullTestSuite() {
 
   const testCase2 = new TestCase(
     {
-      title: '创建订单测试',
-      description: '测试创建订单接口',
+      title: '创建订单测试 - 订单A',
+      description: '测试创建订单接口 - 使用资源锁 order:A',
       tags: ['订单', '创建'],
       priority: 'critical',
-      resourceLocks: ['order_resource'],
+      resourceLocks: ['order:A'],
     },
     async (ctx) => {
       const orderData = await ctx.step('准备订单数据', async () => {
@@ -307,19 +376,35 @@ async function exampleFullTestSuite() {
       });
 
       await ctx.step('验证订单状态', async () => {
-        const assert = new ResponseAssert(
-          { status: 200, data: { code: 0, data: { status: 'paid' } } },
-          { throwOnFailure: false }
-        );
-        assert.status(200).fieldEqual('data.status', 'paid');
-        if (!assert.passed) {
-          throw new Error('订单状态校验失败');
-        }
+        Assert.assertEqual('paid', 'paid');
       });
     }
   );
 
   const testCase3 = new TestCase(
+    {
+      title: '创建订单测试 - 订单B',
+      description: '测试创建订单接口 - 使用资源锁 order:B（与order:A可并发）',
+      tags: ['订单', '创建'],
+      priority: 'critical',
+      resourceLocks: ['order:B'],
+    },
+    async (ctx) => {
+      const orderData = await ctx.step('准备订单数据', async () => {
+        return testOrders[1];
+      });
+
+      await ctx.step('提交订单', async () => {
+        return { orderId: orderData.id, status: 'created' };
+      });
+
+      await ctx.step('验证订单状态', async () => {
+        Assert.assertEqual('paid', 'paid');
+      });
+    }
+  );
+
+  const testCase4 = new TestCase(
     {
       title: '查询订单列表测试',
       description: '测试订单列表查询',
@@ -337,22 +422,22 @@ async function exampleFullTestSuite() {
     }
   );
 
-  const testCase4 = new TestCase(
+  const testCase5 = new TestCase(
     {
-      title: '会失败的测试用例',
-      description: '用于演示失败场景和重试',
+      title: '会失败的测试用例（带断言对比）',
+      description: '用于演示失败场景、重试和断言预期/实际值对比',
       tags: ['演示'],
       priority: 'low',
-      retries: 2,
+      retries: 1,
     },
     async (ctx) => {
       await ctx.step('执行操作', async () => {
-        throw new Error('模拟测试失败');
+        Assert.assertEqual(100, 200);
       });
     }
   );
 
-  const testCase5 = new TestCase(
+  const testCase6 = new TestCase(
     {
       title: '被跳过的测试用例',
       description: '这个用例会被跳过，用于演示跳过统计',
@@ -366,7 +451,7 @@ async function exampleFullTestSuite() {
     }
   );
 
-  const testCase6 = new TestCase(
+  const testCase7 = new TestCase(
     {
       title: '串行执行的测试用例',
       description: '带有串行标签，会串行执行',
@@ -402,7 +487,10 @@ async function exampleFullTestSuite() {
 
       await ctx.step('验证登录结果', async () => {
         if (!data.shouldPass) {
-          throw new Error('登录失败（预期内）');
+          const error = new Error('登录失败（预期内）') as any;
+          error.expected = 'success';
+          error.actual = 'failed';
+          throw error;
         }
         return { success: true };
       });
@@ -416,17 +504,27 @@ async function exampleFullTestSuite() {
     testCase4,
     testCase5,
     testCase6,
+    testCase7,
     ...paramTestCases,
   ]);
 
-  console.log('  开始执行测试套件...');
+  console.log('  📋 执行预览:');
+  const preview = platform.previewSuite(suite);
+  console.log('     总用例:', preview.total, ', 将执行:', preview.willRun, ', 跳过:', preview.skipped);
+  console.log('     串行:', preview.serialCount, ', 并发:', preview.parallelCount);
+  console.log('');
+
+  console.log('  🚀 开始执行测试套件...');
   console.log('');
 
   const { result, reports, notificationErrors } = await platform.runSuite(suite);
 
   console.log('');
   console.log('  === 测试结果 ===');
-  console.log('  总数:', result.total);
+  console.log('  总数:', result.total, '(原始总数:', result.originalTotal, ')');
+  if (result.filteredByTags) {
+    console.log('  ⚠️  已按标签筛选，排除了', result.originalTotal! - result.total, '个用例');
+  }
   console.log('  通过:', result.passed);
   console.log('  失败:', result.failed);
   console.log('  超时:', result.timeout || 0);
@@ -452,6 +550,17 @@ async function exampleFullTestSuite() {
     notificationErrors.forEach(e => {
       console.log('    -', e.notifierName + ':', e.error);
     });
+    console.log('  (注: 通知失败详情已写入报告文件)');
+    console.log('');
+  }
+
+  const history = platform.getReportHistory();
+  if (history) {
+    console.log('  📚 历史报告:');
+    console.log('    总报告数:', history.totalReports);
+    console.log('    最近通过率趋势:', history.passRateTrend.map(r => r.toFixed(0) + '%').join(' → '));
+    console.log('    最新报告:', history.latestReport?.suiteTitle || '-');
+    console.log('    历史索引页:', 'test-reports/index.html');
     console.log('');
   }
 
@@ -459,9 +568,15 @@ async function exampleFullTestSuite() {
   result.results.forEach(r => {
     const icon = r.status === 'passed' ? '✅' : r.status === 'skipped' ? '⏭️' : '❌';
     const dataSetInfo = r.dataSet ? ` [${r.dataSet.name}]` : '';
-    console.log('    ' + icon + ' ' + r.meta.title + dataSetInfo + ' (' + r.meta.priority + ') - ' + r.steps.length + ' 个步骤');
+    const lockInfo = r.meta.resourceLocks && r.meta.resourceLocks.length > 0
+      ? ` [🔒${r.meta.resourceLocks.join(',')}]`
+      : '';
+    console.log('    ' + icon + ' ' + r.meta.title + dataSetInfo + lockInfo + ' (' + r.meta.priority + ') - ' + r.steps.length + ' 个步骤');
     if (r.error) {
       console.log('       错误:', r.error.message);
+      if (r.error.expected !== undefined && r.error.actual !== undefined) {
+        console.log('       预期值:', r.error.expected, ', 实际值:', r.error.actual);
+      }
     }
     if (r.retryCount > 0) {
       console.log('       重试次数:', r.retryCount);

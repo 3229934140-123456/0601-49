@@ -9,8 +9,8 @@ export * from './notification';
 export * from './parameterized';
 
 import { TestCase, TestSuite, TestRunner } from './core';
-import { TestSuiteConfig } from './core';
-import { ReportGenerator, ReportGeneratorOptions, GeneratedReport } from './report';
+import { TestSuiteConfig, TestPreviewResult } from './core';
+import { ReportGenerator, ReportGeneratorOptions, GeneratedReport, ReportHistoryManager } from './report';
 import { NotificationManager, NotificationOptions } from './notification';
 import { TestSuiteResult, NotificationErrorRecord } from './core/types';
 
@@ -44,16 +44,20 @@ export class AutoTestPlatform {
     return suite;
   }
 
+  previewSuite(suite: TestSuite): TestPreviewResult {
+    return this._runner.preview(suite);
+  }
+
   async runSuite(suite: TestSuite): Promise<RunSuiteResult> {
     const result = await this._runner.run(suite);
-
-    const reports = await this._reportGenerator.generate(result);
 
     const notificationErrors = await this._notificationManager.notify(result);
 
     if (notificationErrors.length > 0) {
       result.notificationErrors = notificationErrors;
     }
+
+    const reports = await this._reportGenerator.generate(result);
 
     return {
       result,
@@ -71,6 +75,10 @@ export class AutoTestPlatform {
     }
 
     return allResults;
+  }
+
+  getReportHistory() {
+    return this._reportGenerator.getHistory();
   }
 
   get runner(): TestRunner {

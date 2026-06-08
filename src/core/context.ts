@@ -141,11 +141,18 @@ export class TestContextImpl implements TestContext {
 
   private _normalizeError(error: any): TestError {
     if (error instanceof Error) {
-      return {
+      const testError: TestError = {
         name: error.name,
         message: error.message,
         stack: error.stack,
       };
+      if ((error as any).expected !== undefined) {
+        testError.expected = (error as any).expected;
+      }
+      if ((error as any).actual !== undefined) {
+        testError.actual = (error as any).actual;
+      }
+      return testError;
     }
     return {
       name: 'UnknownError',

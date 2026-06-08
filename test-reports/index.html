@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>订单系统 - 测试报告中心</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #333; padding: 20px; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .header { background: #fff; border-radius: 8px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .header h1 { font-size: 24px; margin-bottom: 8px; }
+    .header .meta { color: #666; font-size: 14px; }
+    .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+    .summary-card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .summary-card .label { font-size: 13px; color: #666; margin-bottom: 8px; }
+    .summary-card .value { font-size: 28px; font-weight: bold; }
+    .summary-card.latest .value { color: #e74c3c; }
+    .summary-card.total .value { color: #3498db; }
+    .summary-card.avg .value { color: #9b59b6; }
+    .trend-section { background: #fff; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .trend-section h2 { font-size: 18px; margin-bottom: 16px; }
+    .trend-chart { display: flex; align-items: flex-end; gap: 8px; height: 140px; padding: 10px 0; border-bottom: 2px solid #eee; }
+    .trend-bar { flex: 1; min-width: 20px; border-radius: 4px 4px 0 0; transition: all 0.3s; }
+    .trend-bar:hover { opacity: 0.8; }
+    .section { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .section h2 { font-size: 18px; margin-bottom: 16px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee; }
+    th { background: #fafbfc; font-weight: 600; color: #555; font-size: 12px; text-transform: uppercase; }
+    tr:hover { background: #f6f8fa; }
+    .detail-row td { background: #fafbfc; padding: 8px 12px; }
+    .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; color: #fff; }
+    .link-btn { display: inline-block; padding: 4px 10px; background: #e1ecf4; color: #39739d; border-radius: 4px; font-size: 12px; text-decoration: none; margin-right: 4px; }
+    .link-btn:hover { background: #d0e3f1; }
+    .failed-list { margin-top: 4px; }
+    .failed-list.empty { color: #999; font-size: 12px; }
+    .failed-tag { display: inline-block; background: #fee; color: #c0392b; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin-right: 4px; }
+    .more-failed { font-size: 11px; color: #999; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📊 订单系统 - 测试报告中心</h1>
+      <div class="meta">
+        <span>🌍 环境: test</span>
+        <span style="margin-left: 20px;">📅 最近更新: 2026/6/8 11:23:29</span>
+      </div>
+    </div>
+
+    <div class="summary">
+      <div class="summary-card latest">
+        <div class="label">最新执行状态</div>
+        <div class="value">失败</div>
+      </div>
+      <div class="summary-card total">
+        <div class="label">历史报告数</div>
+        <div class="value">1</div>
+      </div>
+      <div class="summary-card avg">
+        <div class="label">平均通过率</div>
+        <div class="value">70.0%</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">报告保留</div>
+        <div class="value">最近 10 份</div>
+      </div>
+    </div>
+
+    
+    <div class="trend-section">
+      <h2>📈 通过率趋势 (最近 1 次)</h2>
+      <div class="trend-chart">
+        
+        <div class="trend-bar" style="height: 84px; background: #f39c12;" title="第1次: 70.0%"></div>
+      
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>📋 历史报告列表</h2>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 70px;">状态</th>
+            <th>套件名称</th>
+            <th style="width: 60px;">总数</th>
+            <th style="width: 60px;">通过</th>
+            <th style="width: 60px;">失败</th>
+            <th style="width: 60px;">跳过</th>
+            <th style="width: 60px;">超时</th>
+            <th style="width: 80px;">通过率</th>
+            <th style="width: 80px;">耗时</th>
+            <th style="width: 160px;">执行时间</th>
+            <th style="width: 180px;">报告</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+        <tr>
+          <td style="text-align: center;">
+            <span class="status-badge" style="background: #e74c3c;">失败</span>
+          </td>
+          <td>订单流程测试 - V2增强版</td>
+          <td style="text-align: center;">10</td>
+          <td style="text-align: center; color: #27ae60;">7</td>
+          <td style="text-align: center; color: #e74c3c;">2</td>
+          <td style="text-align: center; color: #95a5a6;">1</td>
+          <td style="text-align: center; color: #e67e22;">0</td>
+          <td style="text-align: center; font-weight: bold; color: #f39c12;">70.0%</td>
+          <td style="text-align: center;">3ms</td>
+          <td style="white-space: nowrap;">2026/6/8 11:23:29</td>
+          <td>
+            <a href="https://reports.example.com/share/report_suite-1780889009022-82995ob_1780889009039.html" target="_blank" class="link-btn">HTML</a> <a href="https://reports.example.com/share/report_suite-1780889009022-82995ob_1780889009039.json" target="_blank" class="link-btn">JSON</a> <a href="https://reports.example.com/share/report_suite-1780889009022-82995ob_1780889009039.md" target="_blank" class="link-btn">Markdown</a>
+          </td>
+        </tr>
+        <tr class="detail-row">
+          <td colspan="11">
+            <div class="failed-list"><span class="failed-tag">会失败的测试用例（带断言对比）</span><span class="failed-tag">参数化-账号登录 - user_3_T7oH</span></div>
+          </td>
+        </tr>
+      
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>
