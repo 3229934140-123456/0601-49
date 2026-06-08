@@ -13,6 +13,15 @@ export interface TestCaseMeta {
   concurrent?: boolean;
   skip?: boolean;
   only?: boolean;
+  dataSet?: DataSetMeta;
+  resourceLocks?: string[];
+}
+
+export interface DataSetMeta {
+  name: string;
+  index: number;
+  data: any;
+  summary: string;
 }
 
 export interface TestStep {
@@ -27,6 +36,8 @@ export interface TestStep {
   status: TestStatus;
   error?: TestError;
   screenshot?: string;
+  retryAttempt?: number;
+  logs?: Array<{ timestamp: number; level: string; message: string }>;
 }
 
 export interface TestError {
@@ -35,6 +46,12 @@ export interface TestError {
   stack?: string;
   expected?: any;
   actual?: any;
+}
+
+export interface RetryRecord {
+  attempt: number;
+  error: TestError;
+  timestamp: number;
 }
 
 export interface TestResult {
@@ -46,7 +63,12 @@ export interface TestResult {
   steps: TestStep[];
   error?: TestError;
   retryCount: number;
+  retryRecords?: RetryRecord[];
   screenshots: string[];
+  dataSet?: DataSetMeta;
+  isParameterized?: boolean;
+  parameterizedIndex?: number;
+  parameterizedTotal?: number;
 }
 
 export interface TestSuiteResult {
@@ -59,7 +81,19 @@ export interface TestSuiteResult {
   passed: number;
   failed: number;
   skipped: number;
+  timeout: number;
   results: TestResult[];
+  skippedDetails?: TestResult[];
+  notificationErrors?: NotificationErrorRecord[];
+  environment?: string;
+  projectName?: string;
+  reportId?: string;
+}
+
+export interface NotificationErrorRecord {
+  notifierName: string;
+  error: string;
+  timestamp: number;
 }
 
 export interface TestContextData {
@@ -71,16 +105,17 @@ export interface TestContext {
   readonly data: TestContextData;
   readonly steps: ReadonlyArray<TestStep>;
   readonly currentStep?: TestStep;
-  
+  readonly dataSet?: DataSetMeta;
+
   set(key: string, value: any): void;
   get<T = any>(key: string): T | undefined;
-  
+
   step<T = any>(name: string, fn: () => Promise<T> | T, description?: string): Promise<T>;
-  
+
   log(message: string, ...args: any[]): void;
   warn(message: string, ...args: any[]): void;
   error(message: string, ...args: any[]): void;
-  
+
   attachScreenshot(path: string): void;
 }
 
@@ -91,6 +126,8 @@ export interface TestSuiteConfig {
   tags?: string[];
   excludeTags?: string[];
   bail?: boolean;
+  serialTags?: string[];
+  includeSkippedInReport?: boolean;
 }
 
 export interface NotificationConfig {
@@ -107,4 +144,30 @@ export interface ReportConfig {
   format?: ('html' | 'json' | 'markdown')[];
   includeScreenshots?: boolean;
   shareable?: boolean;
+  shareBaseUrl?: string;
+  reportTitle?: string;
+  projectName?: string;
+  environment?: string;
+  metadata?: Record<string, any>;
+  showStepDetails?: boolean;
+  showScreenshots?: boolean;
+  showRetryRecords?: boolean;
+  showSkipped?: boolean;
+}
+
+export interface ResourceLock {
+  key: string;
+  holder?: string;
+  queue: Array<{ resolve: () => void; testCaseId: string }>;
+}
+
+export interface ParameterizedTestCaseConfig {
+  title?: string;
+  description?: string;
+  tags?: string[];
+  priority?: 'low' | 'medium' | 'high' | 'critical';
+  timeout?: number;
+  retries?: number;
+  dataSummary?: (data: any, index: number) => string;
+  dataName?: (data: any, index: number) => string;
 }

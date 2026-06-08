@@ -1,0 +1,2350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>订单系统测试报告 - 增强版</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #333; padding: 20px; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .header { background: #fff; border-radius: 8px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .header h1 { font-size: 24px; margin-bottom: 8px; }
+    .header .meta { color: #666; font-size: 14px; line-height: 1.8; }
+    .summary { display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px; margin-bottom: 20px; }
+    .summary-card { background: #fff; border-radius: 8px; padding: 20px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .summary-card .value { font-size: 32px; font-weight: bold; margin-bottom: 4px; }
+    .summary-card .label { font-size: 14px; color: #666; }
+    .summary-card.passed .value { color: #27ae60; }
+    .summary-card.failed .value { color: #e74c3c; }
+    .summary-card.skipped .value { color: #95a5a6; }
+    .summary-card.timeout .value { color: #e67e22; }
+    .summary-card.total .value { color: #3498db; }
+    .summary-card.rate .value { color: #e74c3c; }
+    .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; color: #fff; }
+    .status-badge.passed { background: #27ae60; }
+    .status-badge.failed { background: #e74c3c; }
+    .status-badge.skipped { background: #95a5a6; }
+    .status-badge.timeout { background: #e67e22; }
+    .section { background: #fff; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .section h2 { font-size: 18px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+    .section .count { background: #e1ecf4; color: #39739d; padding: 2px 10px; border-radius: 12px; font-size: 13px; font-weight: normal; }
+    .test-case { border: 1px solid #e1e4e8; border-radius: 6px; margin-bottom: 12px; overflow: hidden; }
+    .test-case-header { padding: 16px; background: #fafbfc; display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; }
+    .test-case-header:hover { background: #f0f3f6; }
+    .test-case-title { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+    .test-case-title h3 { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .test-case-meta { font-size: 12px; color: #666; display: flex; gap: 16px; align-items: center; flex-shrink: 0; }
+    .test-case-body { padding: 16px; display: none; border-top: 1px solid #e1e4e8; background: #fff; }
+    .test-case.open .test-case-body { display: block; }
+    .data-set-badge { background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 3px; font-size: 11px; }
+    .steps { margin-top: 12px; }
+    .step { border-left: 3px solid #ddd; margin-bottom: 8px; background: #fafbfc; }
+    .step.passed { border-left-color: #27ae60; }
+    .step.failed { border-left-color: #e74c3c; }
+    .step.timeout { border-left-color: #e67e22; }
+    .step-header { padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; }
+    .step-header:hover { background: #f0f3f6; }
+    .step-name { font-weight: 600; font-size: 13px; }
+    .step-duration { font-size: 11px; color: #999; }
+    .step-body { padding: 12px 14px; display: none; border-top: 1px solid #e8ecef; font-size: 12px; }
+    .step.open .step-body { display: block; }
+    .step-section { margin-bottom: 10px; }
+    .step-section:last-child { margin-bottom: 0; }
+    .step-section-title { font-weight: 600; color: #555; margin-bottom: 4px; font-size: 11px; text-transform: uppercase; }
+    .step-section-content { background: #f6f8fa; padding: 8px 10px; border-radius: 4px; font-family: 'Monaco', 'Consolas', monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; }
+    .error-box { background: #fee; border: 1px solid #fcc; border-radius: 4px; padding: 12px; margin-top: 8px; font-family: 'Monaco', 'Consolas', monospace; font-size: 12px; white-space: pre-wrap; word-break: break-all; color: #c0392b; }
+    .retry-section { margin-top: 12px; padding: 12px; background: #fff8e1; border-radius: 4px; border: 1px solid #ffe082; }
+    .retry-section h4 { font-size: 13px; color: #f57f17; margin-bottom: 8px; }
+    .retry-item { padding: 8px; background: #fff; border-radius: 4px; margin-bottom: 6px; font-size: 12px; }
+    .retry-item .attempt { font-weight: bold; color: #e65100; }
+    .tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+    .tag { background: #e1ecf4; color: #39739d; padding: 2px 8px; border-radius: 3px; font-size: 11px; }
+    .priority { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; }
+    .priority.critical { background: #ffebee; color: #c62828; }
+    .priority.high { background: #fff3e0; color: #e65100; }
+    .priority.medium { background: #fff8e1; color: #f57f17; }
+    .priority.low { background: #e8f5e9; color: #2e7d32; }
+    .screenshot-thumb { max-width: 200px; max-height: 150px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; }
+    .notification-error { background: #fff3e0; border-left: 4px solid #ff9800; padding: 10px 14px; margin-bottom: 8px; font-size: 13px; }
+    .notification-error .name { font-weight: bold; color: #e65100; }
+    .notification-error .msg { color: #666; margin-top: 4px; font-size: 12px; }
+    .toggle-icon { transition: transform 0.2s; font-size: 12px; color: #999; }
+    .test-case.open .toggle-icon { transform: rotate(90deg); }
+    .step.open .toggle-icon { transform: rotate(90deg); }
+    .tabs { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 2px solid #e1e4e8; }
+    .tab { padding: 10px 20px; cursor: pointer; font-size: 14px; color: #666; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+    .tab.active { color: #0366d6; border-bottom-color: #0366d6; font-weight: 600; }
+    .tab:hover { color: #0366d6; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>订单系统测试报告 - 增强版</h1>
+      <div class="meta">
+        <div>📦 项目: 订单系统 | 🌍 环境: test</div>
+        <div>📋 套件: 订单流程测试 - 增强版 | 📅 生成时间: 2026/6/8 11:04:01</div>
+        <div>⏱️ 总耗时: 3ms | 报告ID: report_suite-1780887841405-gezqjn1_1780887841409</div>
+        <div>🔗 分享: <span style="color: #0366d6;">https://reports.example.com/share</span></div>
+      </div>
+    </div>
+
+    <div class="summary">
+      <div class="summary-card total">
+        <div class="value">9</div>
+        <div class="label">总数</div>
+      </div>
+      <div class="summary-card passed">
+        <div class="value">6</div>
+        <div class="label">通过</div>
+      </div>
+      <div class="summary-card failed">
+        <div class="value">2</div>
+        <div class="label">失败</div>
+      </div>
+      <div class="summary-card timeout">
+        <div class="value">0</div>
+        <div class="label">超时</div>
+      </div>
+      <div class="summary-card skipped">
+        <div class="value">1</div>
+        <div class="label">跳过</div>
+      </div>
+      <div class="summary-card rate">
+        <div class="value">66.7%</div>
+        <div class="label">通过率</div>
+      </div>
+    </div>
+
+    
+
+    <div class="section">
+      <div class="tabs">
+        <div class="tab active" onclick="switchTab('failed', this)">❌ 失败 (2)</div>
+        <div class="tab" onclick="switchTab('passed', this)">✅ 通过 (6)</div>
+        <div class="tab" onclick="switchTab('skipped', this)">⏭️ 跳过 (1)</div>
+        <div class="tab" onclick="switchTab('all', this)">📋 全部 (9)</div>
+      </div>
+
+      <div id="tab-failed" class="tab-content active">
+        
+    <div class="test-case failed">
+      <div class="test-case-header" onclick="toggleTestCase(this)">
+        <div class="test-case-title">
+          <span class="toggle-icon">▶</span>
+          <span class="status-badge failed">失败</span>
+          <h3>会失败的测试用例</h3>
+          
+          <span class="priority low">low</span>
+        </div>
+        <div class="test-case-meta">
+          <span>⏱️ 1ms</span>
+          <span>🔄 2次重试</span>
+          <span>📝 1步骤</span>
+        </div>
+      </div>
+      <div class="test-case-body">
+        <div class="tags"><span class="tag">演示</span></div>
+        <p style="margin-top: 8px; color: #666; font-size: 13px;">用于演示失败场景和重试</p>
+        
+        <div class="error-box">
+          <strong>Error: 模拟测试失败</strong>
+          
+Error: 模拟测试失败
+    at D:\trae-bz\TraeProjects\49\dist\examples\basic-usage.js:269:19
+    at TestContextImpl.step (D:\trae-bz\TraeProjects\49\dist\core\context.js:48:34)
+    at TestCase._fn (D:\trae-bz\TraeProjects\49\dist\examples\basic-usage.js:268:19)
+    at D:\trae-bz\TraeProjects\49\dist\core\test-case.js:119:34
+    at new Promise (&lt;anonymous&gt;)
+    at TestCase._runWithTimeout (D:\trae-bz\TraeProjects\49\dist\core\test-case.js:113:16)
+    at TestCase.run (D:\trae-bz\TraeProjects\49\dist\core\test-case.js:50:41)
+    at async runTestCase (D:\trae-bz\TraeProjects\49\dist\core\test-runner.js:57:32)
+    at async runNext (D:\trae-bz\TraeProjects\49\dist\core\test-runner.js:86:36)
+    at async Promise.all (index 2)
+        </div>
+        
+    <div class="retry-section">
+      <h4>🔄 重试记录 (2 次)</h4>
+      
+      <div class="retry-item">
+        <span class="attempt">第 1 次重试</span>
+        <span style="color: #999; margin-left: 10px;">11:04:01</span>
+        <div style="margin-top: 6px; color: #c0392b; font-family: monospace; font-size: 11px;">
+          Error: 模拟测试失败
+        </div>
+      </div>
+    
+      <div class="retry-item">
+        <span class="attempt">第 2 次重试</span>
+        <span style="color: #999; margin-left: 10px;">11:04:01</span>
+        <div style="margin-top: 6px; color: #c0392b; font-family: monospace; font-size: 11px;">
+          Error: 模拟测试失败
+        </div>
+      </div>
+    
+    </div>
+        
+        <div class="steps"><h4 style="margin-bottom: 8px; font-size: 13px;">📋 步骤详情 (1)</h4>
+    <div class="step failed">
+      <div class="step-header" onclick="toggleStep(this)">
+        <span class="step-name">
+          <span class="toggle-icon" style="margin-right: 6px;">▶</span>
+          执行操作
+        </span>
+        <span class="step-duration">0ms</span>
+      </div>
+      <div class="step-body">
+        
+        
+        <div class="step-section">
+          <div class="step-section-title" style="color: #c0392b;">错误</div>
+          <div class="step-section-content" style="background: #fee; color: #c0392b;">
+            Error: 模拟测试失败
+          </div>
+        </div>
+        
+        
+      </div>
+    </div></div>
+      </div>
+    </div>
+    <div class="test-case failed">
+      <div class="test-case-header" onclick="toggleTestCase(this)">
+        <div class="test-case-title">
+          <span class="toggle-icon">▶</span>
+          <span class="status-badge failed">失败</span>
+          <h3>参数化-账号登录 - user_3_fvDi</h3>
+          <span class="data-set-badge" title="user_3_fvDi, shouldPass=false">user_3_fvDi</span>
+          <span class="priority high">high</span>
+        </div>
+        <div class="test-case-meta">
+          <span>⏱️ 0ms</span>
+          <span>🔄 1次重试</span>
+          <span>📝 2步骤</span>
+        </div>
+      </div>
+      <div class="test-case-body">
+        <div class="tags"><span class="tag">参数化</span><span class="tag">登录</span></div>
+        <p style="margin-top: 8px; color: #666; font-size: 13px;">用不同账号测试登录</p>
+        <div class="step-section">
+          <div class="step-section-title">测试数据</div>
+          <div class="step-section-content">user_3_fvDi, shouldPass=false</div>
+        </div>
+        <div class="error-box">
+          <strong>Error: 登录失败（预期内）</strong>
+          
+Error: 登录失败（预期内）
+    at D:\trae-bz\TraeProjects\49\dist\examples\basic-usage.js:310:23
+    at TestContextImpl.step (D:\trae-bz\TraeProjects\49\dist\core\context.js:48:34)
+    at TestCase._fn (D:\trae-bz\TraeProjects\49\dist\examples\basic-usage.js:308:19)
+        </div>
+        
+    <div class="retry-section">
+      <h4>🔄 重试记录 (1 次)</h4>
+      
+      <div class="retry-item">
+        <span class="attempt">第 1 次重试</span>
+        <span style="color: #999; margin-left: 10px;">11:04:01</span>
+        <div style="margin-top: 6px; color: #c0392b; font-family: monospace; font-size: 11px;">
+          Error: 登录失败（预期内）
+        </div>
+      </div>
+    
+    </div>
+        
+        <div class="steps"><h4 style="margin-bottom: 8px; font-size: 13px;">📋 步骤详情 (2)</h4>
+    <div class="step passed">
+      <div class="step-header" onclick="toggleStep(this)">
+        <span class="step-name">
+          <span class="toggle-icon" style="margin-right: 6px;">▶</span>
+          用户登录
+        </span>
+        <span class="step-duration">0ms</span>
+      </div>
+      <div class="step-body">
+        
+        <div class="step-section">
+          <div class="step-section-title">输出</div>
+          <div class="step-section-content">{
+  &quot;username&quot;: &quot;user_3_fvDi&quot;
+}</div>
+        </div>
+        
+        
+        
+      </div>
+    </div>
+    <div class="step failed">
+      <div class="step-header" onclick="toggleStep(this)">
+        <span class="step-name">
+          <span class="toggle-icon" style="margin-right: 6px;">▶</span>
+          验证登录结果
+        </span>
+        <span class="step-duration">0ms</span>
+      </div>
+      <div class="step-body">
+        
+        
+        <div class="step-section">
+          <div class="step-section-title" style="color: #c0392b;">错误</div>
+          <div class="step-section-content" style="background: #fee; color: #c0392b;">
+            Error: 登录失败（预期内）
+          </div>
+        </div>
+        
+        
+      </div>
+    </div></div>
+      </div>
+    </div>
+      </div>
+
+      <div id="tab-passed" class="tab-content">
+        
+    <div class="test-case passed">
+      <div class="test-case-header" onclick="toggleTestCase(this)">
+        <div class="test-case-title">
+          <span class="toggle-icon">▶</span>
+          <span class="status-badge passed">通过</span>
+          <h3>创建订单测试</h3>
+          
+          <span class="priority critical">critical</span>
+        </div>
+        <div class="test-case-meta">
+          <span>⏱️ 1ms</span>
+          <span>🔄 0次重试</span>
+          <span>📝 3步骤</span>
+        </div>
+      </div>
+      <div class="test-case-body">
+        <div class="tags"><span class="tag">订单</span><span class="tag">创建</span></div>
+        <p style="margin-top: 8px; color: #666; font-size: 13px;">测试创建订单接口</p>
+        
+        
+        
+        
+        <div class="steps"><h4 style="margin-bottom: 8px; font-size: 13px;">📋 步骤详情 (3)</h4>
+    <div class="step passed">
+      <div class="step-header" onclick="toggleStep(this)">
+        <span class="step-name">
+          <span class="toggle-icon" style="margin-right: 6px;">▶</span>
+          准备订单数据
+        </span>
+        <span class="step-duration">0ms</span>
+      </div>
+      <div class="step-body">
+        
+        <div class="step-section">
+          <div class="step-section-title">输出</div>
+          <div class="step-section-content">{
+  &quot;id&quot;: &quot;ord_mq4mn0xpnnc57s&quot;,
+  &quot;orderNo&quot;: &quot;2026060838961570&quot;,
+  &quot;userId&quot;: &quot;usr_mq4mn0xphxpd78&quot;,
+  &quot;items&quot;: [
+    {
+      &quot;id&quot;: &quot;item_mq4mn0xp2cjw1i&quot;,
+      &quot;productId&quot;: &quot;prod_006&quot;,
+      &quot;productName&quot;: &quot;移动固态硬盘 1TB&quot;,
+      &quot;price&quot;: 599,
+      &quot;quantity&quot;: 1,
+      &quot;subtotal&quot;: 599
+    },
+    {
+      &quot;id&quot;: &quot;item_mq4mn0xpl1qtlj&quot;,
+      &quot;productId&quot;: &quot;prod_003&quot;,
+      &quot;productName&quot;: &quot;游戏鼠标&quot;,
+      &quot;price&quot;: 189,
+      &quot;quantity&quot;: 2,
+      &quot;subtotal&quot;: 378
+    },
+    {
+      &quot;id&quot;: &quot;item_mq4mn0xpop44e1&quot;,
+      &quot;productId&quot;: &quot;prod_005&quot;,
+      &quot;productName&quot;: &quot;USB-C 扩展坞&quot;,
+      &quot;price&quot;: 259,
+      &quot;quantity&quot;: 2,
+      &quot;subtotal&quot;: 518
+    },
+    {
+      &quot;id&quot;: &quot;item_mq4mn0xpk4vazk&quot;,
+      &quot;productId&quot;: &quot;prod_004&quot;,
+      &quot;productName&quot;: &quot;显示器支架&quot;,
+      &quot;price&quot;: 399,
+      &quot;quantity&quot;: 1,
+      &quot;subtotal&quot;: 399
+    },
+    {
+      &quot;id&quot;: &quot;item_mq4mn0xp1o0zb0&quot;,
+      &quot;productId&quot;: &quot;prod_001&quot;,
+      &quot;productName&quot;: &quot;无线蓝牙耳机&quot;,
+      &quot;price&quot;: 299,
+      &quot;quantity&quot;: 1,
+      &quot;subtotal&quot;: 299
+    }
+  ],
+  &quot;totalAmount&quot;: 2193,
+  &quot;status&quot;: &quot;delivered&quot;,
+  &quot;paymentMethod&quot;: &quot;wechat&quot;,
+  &quot;shippingAddress&quot;: {
+    &quot;name&quot;: &quot;用户kv&quot;,
+    &quot;phone&quot;: &quot;13861993699&quot;,
+    &quot;province&quot;: &quot;山东省&quot;,
+    &quot;city&quot;: &quot;潍坊市&quot;,
+    &quot;district&quot;: &quot;福田区&quot;,
+    &quot;address&quot;: &quot;福田区某某路867号24栋23单元&quot;,
+    &quot;zipCode&quot;: &quot;543856&quot;
+  },
+  &quot;createdAt&quot;: &quot;2026-06-06T08:33:20.709Z&quot;,
+  &quot;paidAt&quot;: &quot;2026-06-06T08:54:20.709Z&quot;,
+  &quot;shippedAt&quot;: &quot;2026-06-06T22:54:20.709Z&quot;,
+  &quot;deliveredAt&quot;: &quot;2026-06-07T15:54:20.709Z&quot;,
+  &quot;remark&quot;: &quot;测试订单，请勿发货&quot;
+}</div>
+        </div>
+        
+        
+        
+      </div>
+    </div>
+    <div class="step passed">
+      <div class="step-header" onclick="toggleStep(this)">
+        <span class="step-name">
+          <span class="toggle-icon" style="margin-right: 6px;">▶</span>
+          提交订单
+        </span>
+        <span class="step-duration">0ms</span>
+      </div>
+      <div class="step-body">
+        
+        <div class="step-section">
+          <div class="step-section-title">输出</div>
+          <div class="step-section-content">{
+  &quot;orderId&quot;: &quot;ord_mq4mn0xpnnc57s&quot;,
+  &quot;status&quot;: &quot;created&quot;
+}</div>
+        </div>
+        
+        
+        
+      </div>
+    </div>
+    <div class="step passed">
+      <div class="step-header" onclick="toggleStep(this)">
+        <span class="step-name">
+          <span class="toggle-icon" style="margin-right: 6px;"></span>
+          验证订单状态
+        </span>
+        <span class="step-duration">0ms</span>
+      </div>
+      
+    </div></div>
+      </div>
+    </div>
+    <div class="test-case passed">
+      <div class="test-case-header" onclick="toggleTestCase(this)">
+        <div class="test-case-title">
+          <span class="toggle-icon">▶</span>
+          <span class="status-badge passed">通过</span>
+          <h3>串行执行的测试用例</h3>
+          
+          <span class="priority medium">medium</span>
+        </div>
+        <div class="test-case-meta">
+          <span>⏱️ 0ms</span>
+          <span>🔄 0次重试</span>
+          <span>📝 1步骤</span>
+        </div>
+      </div>
+      <div class="test-case-body">
+        <div class="tags"><span class="tag">串行</span><span class="tag">演示</span></div>
+        <p style="margin-top: 8px; color: #666; font-size: 13px;">带有串行标签，会串行执行</p>
+        
+        
+        
+        
+        <div class="steps"><h4 style="margin-bottom: 8px; font-size: 13px;">📋 步骤详情 (1)</h4>
+    <div class="step passed">
+      <div class="step-header" onclick="toggleStep(this)">
+        <span class="step-name">
+          <span class="toggle-icon" style="margin-right: 6px;">▶</span>
+          执行串行操作
+        </span>
+        <span class="step-duration">0ms</span>
+      </div>
+      <div class="step-body">
+        
+        <div class="step-section">
+          <div class="step-section-title">输出</div>
+          <div class="step-section-content">{
+  &quot;ok&quot;: true
+}</div>
+        </div>
+        
+        
+        
+      </div>
+    </div></div>
+      </div>
+    </div>
+    <div class="test-case passed">
+      <div class="test-case-header" onclick="toggleTestCase(this)">
+        <div class="test-case-title">
+          <span class="toggle-icon">▶</span>
+          <span class="status-badge passed">通过</span>
+          <h3>用户登录测试</h3>
+          
+          <span class="priority high">high</span>
+        </div>
+        <div class="test-case-meta">
+          <span>⏱️ 1ms</span>
+          <span>🔄 0次重试</span>
+          <span>📝 2步骤</span>
+        </div>
+      </div>
+      <div class="test-case-body">
+        <div class="tags"><span class="tag">登录</span><span class="tag">用户</span></div>
+        <p style="margin-top: 8px; color: #666; font-size: 13px;">测试用户登录功能是否正常</p>
+        
+        
+        
+        
+        <div class="steps"><h4 style="margin-bottom: 8px; font-size: 13px;">📋 步骤详情 (2)</h4>
+    <div class="step passed">
+      <div class="step-header" onclick="toggleStep(this)">
+        <span class="step-name">
+          <span class="toggle-icon" style="margin-right: 6px;">▶</span>
+          输入用户名密码
+        </span>
+        <span class="step-duration">0ms</span>
+      </div>
+      <div class="step-body">
+        
+        <div class="step-section">
+          <div class="step-section-title">输出</div>
+          <div class="step-section-content">{
+  &quot;username&quot;: &quot;test_user&quot;,
+  &quot;password&quot;: &quot;******&quot;
+}</div>
+        </div>
+        
+        
+        
+      </div>
+    </div>
+    <div class="step passed">
+      <div class="step-header" onclick="toggleStep(this)">
+        <span class="step-name">
+          <span class="toggle-icon" style="margin-right: 6px;">▶</span>
+          验证登录结果
+        </span>
+        <span class="step-duration">0ms</span>
+      </div>
+      <div class="step-body">
+        
+        <div class="step-section">
+          <div class="step-section-title">输出</div>
+          <div class="step-section-content">{
+  &quot;success&quot;: true,
+  &quot;token&quot;: &quot;mock_token_123&quot;
+}</div>
+        </div>
+        
+        
+        
+      </div>
+    </div></div>
+      </div>
+    </div>
+    <div class="test-case passed">
+      <div class="test-case-header" onclick="toggleTestCase(this)">
+        <div class="test-case-title">
+          <span class="toggle-icon">▶</span>
+          <span class="status-badge passed">通过</span>
+          <h3>查询订单列表测试</h3>
+          
+          <span class="priority medium">medium</span>
+        </div>
+        <div class="test-case-meta">
+          <span>⏱️ 1ms</span>
+          <span>🔄 0次重试</span>
+          <span>📝 2步骤</span>
+        </div>
+      </div>
+      <div class="test-case-body">
+        <div class="tags"><span class="tag">订单</span><span class="tag">查询</span></div>
+        <p style="margin-top: 8px; color: #666; font-size: 13px;">测试订单列表查询</p>
+        
+        
+        
+        
+        <div class="steps"><h4 style="margin-bottom: 8px; font-size: 13px;">📋 步骤详情 (2)</h4>
+    <div class="step passed">
+      <div class="step-header" onclick="toggleStep(this)">
+        <span class="step-name">
+          <span class="toggle-icon" style="margin-right: 6px;">▶</span>
+          查询订单列表
+        </span>
+        <span class="step-duration">0ms</span>
+      </div>
+      <div class="step-body">
+        
+        <div class="step-section">
+          <div class="step-section-title">输出</div>
+          <div class="step-section-content">{
+  &quot;total&quot;: 10,
+  &quot;list&quot;: [
+    {
+      &quot;id&quot;: &quot;ord_mq4mn0xpnnc57s&quot;,
+      &quot;orderNo&quot;: &quot;2026060838961570&quot;,
+      &quot;userId&quot;: &quot;usr_mq4mn0xphxpd78&quot;,
+      &quot;items&quot;: [
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xp2cjw1i&quot;,
+          &quot;productId&quot;: &quot;prod_006&quot;,
+          &quot;productName&quot;: &quot;移动固态硬盘 1TB&quot;,
+          &quot;price&quot;: 599,
+          &quot;quantity&quot;: 1,
+          &quot;subtotal&quot;: 599
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpl1qtlj&quot;,
+          &quot;productId&quot;: &quot;prod_003&quot;,
+          &quot;productName&quot;: &quot;游戏鼠标&quot;,
+          &quot;price&quot;: 189,
+          &quot;quantity&quot;: 2,
+          &quot;subtotal&quot;: 378
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpop44e1&quot;,
+          &quot;productId&quot;: &quot;prod_005&quot;,
+          &quot;productName&quot;: &quot;USB-C 扩展坞&quot;,
+          &quot;price&quot;: 259,
+          &quot;quantity&quot;: 2,
+          &quot;subtotal&quot;: 518
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpk4vazk&quot;,
+          &quot;productId&quot;: &quot;prod_004&quot;,
+          &quot;productName&quot;: &quot;显示器支架&quot;,
+          &quot;price&quot;: 399,
+          &quot;quantity&quot;: 1,
+          &quot;subtotal&quot;: 399
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xp1o0zb0&quot;,
+          &quot;productId&quot;: &quot;prod_001&quot;,
+          &quot;productName&quot;: &quot;无线蓝牙耳机&quot;,
+          &quot;price&quot;: 299,
+          &quot;quantity&quot;: 1,
+          &quot;subtotal&quot;: 299
+        }
+      ],
+      &quot;totalAmount&quot;: 2193,
+      &quot;status&quot;: &quot;delivered&quot;,
+      &quot;paymentMethod&quot;: &quot;wechat&quot;,
+      &quot;shippingAddress&quot;: {
+        &quot;name&quot;: &quot;用户kv&quot;,
+        &quot;phone&quot;: &quot;13861993699&quot;,
+        &quot;province&quot;: &quot;山东省&quot;,
+        &quot;city&quot;: &quot;潍坊市&quot;,
+        &quot;district&quot;: &quot;福田区&quot;,
+        &quot;address&quot;: &quot;福田区某某路867号24栋23单元&quot;,
+        &quot;zipCode&quot;: &quot;543856&quot;
+      },
+      &quot;createdAt&quot;: &quot;2026-06-06T08:33:20.709Z&quot;,
+      &quot;paidAt&quot;: &quot;2026-06-06T08:54:20.709Z&quot;,
+      &quot;shippedAt&quot;: &quot;2026-06-06T22:54:20.709Z&quot;,
+      &quot;deliveredAt&quot;: &quot;2026-06-07T15:54:20.709Z&quot;,
+      &quot;remark&quot;: &quot;测试订单，请勿发货&quot;
+    },
+    {
+      &quot;id&quot;: &quot;ord_mq4mn0xpjqj7mv&quot;,
+      &quot;orderNo&quot;: &quot;2026060898830377&quot;,
+      &quot;userId&quot;: &quot;usr_mq4mn0xpxkd8oq&quot;,
+      &quot;items&quot;: [
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpsbwhu3&quot;,
+          &quot;productId&quot;: &quot;prod_008&quot;,
+          &quot;productName&quot;: &quot;桌面收纳盒&quot;,
+          &quot;price&quot;: 89,
+          &quot;quantity&quot;: 3,
+          &quot;subtotal&quot;: 267
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpjy7jna&quot;,
+          &quot;productId&quot;: &quot;prod_004&quot;,
+          &quot;productName&quot;: &quot;显示器支架&quot;,
+          &quot;price&quot;: 399,
+          &quot;quantity&quot;: 2,
+          &quot;subtotal&quot;: 798
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpbiupqk&quot;,
+          &quot;productId&quot;: &quot;prod_006&quot;,
+          &quot;productName&quot;: &quot;移动固态硬盘 1TB&quot;,
+          &quot;price&quot;: 599,
+          &quot;quantity&quot;: 2,
+          &quot;subtotal&quot;: 1198
+        }
+      ],
+      &quot;totalAmount&quot;: 2263,
+      &quot;status&quot;: &quot;shipped&quot;,
+      &quot;paymentMethod&quot;: &quot;card&quot;,
+      &quot;shippingAddress&quot;: {
+        &quot;name&quot;: &quot;用户np&quot;,
+        &quot;phone&quot;: &quot;13827852919&quot;,
+        &quot;province&quot;: &quot;山东省&quot;,
+        &quot;city&quot;: &quot;烟台市&quot;,
+        &quot;district&quot;: &quot;福田区&quot;,
+        &quot;address&quot;: &quot;福田区某某路369号13栋26单元&quot;,
+        &quot;zipCode&quot;: &quot;169778&quot;
+      },
+      &quot;createdAt&quot;: &quot;2026-05-21T08:06:15.073Z&quot;,
+      &quot;paidAt&quot;: &quot;2026-05-21T08:48:15.073Z&quot;,
+      &quot;shippedAt&quot;: &quot;2026-05-21T10:48:15.073Z&quot;,
+      &quot;remark&quot;: &quot;测试订单，请勿发货&quot;
+    },
+    {
+      &quot;id&quot;: &quot;ord_mq4mn0xpsdfl70&quot;,
+      &quot;orderNo&quot;: &quot;2026060829029757&quot;,
+      &quot;userId&quot;: &quot;usr_mq4mn0xp46akye&quot;,
+      &quot;items&quot;: [
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpgr2wwg&quot;,
+          &quot;productId&quot;: &quot;prod_008&quot;,
+          &quot;productName&quot;: &quot;桌面收纳盒&quot;,
+          &quot;price&quot;: 89,
+          &quot;quantity&quot;: 3,
+          &quot;subtotal&quot;: 267
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xp4kyd2y&quot;,
+          &quot;productId&quot;: &quot;prod_002&quot;,
+          &quot;productName&quot;: &quot;机械键盘&quot;,
+          &quot;price&quot;: 459,
+          &quot;quantity&quot;: 2,
+          &quot;subtotal&quot;: 918
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpyju83w&quot;,
+          &quot;productId&quot;: &quot;prod_003&quot;,
+          &quot;productName&quot;: &quot;游戏鼠标&quot;,
+          &quot;price&quot;: 189,
+          &quot;quantity&quot;: 1,
+          &quot;subtotal&quot;: 189
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xp1krq3x&quot;,
+          &quot;productId&quot;: &quot;prod_006&quot;,
+          &quot;productName&quot;: &quot;移动固态硬盘 1TB&quot;,
+          &quot;price&quot;: 599,
+          &quot;quantity&quot;: 2,
+          &quot;subtotal&quot;: 1198
+        }
+      ],
+      &quot;totalAmount&quot;: 2572,
+      &quot;status&quot;: &quot;paid&quot;,
+      &quot;paymentMethod&quot;: &quot;card&quot;,
+      &quot;shippingAddress&quot;: {
+        &quot;name&quot;: &quot;用户jr&quot;,
+        &quot;phone&quot;: &quot;13877333276&quot;,
+        &quot;province&quot;: &quot;山东省&quot;,
+        &quot;city&quot;: &quot;济南市&quot;,
+        &quot;district&quot;: &quot;西城区&quot;,
+        &quot;address&quot;: &quot;西城区某某路42号3栋4单元&quot;,
+        &quot;zipCode&quot;: &quot;109397&quot;
+      },
+      &quot;createdAt&quot;: &quot;2026-05-11T23:39:05.001Z&quot;,
+      &quot;paidAt&quot;: &quot;2026-05-12T00:05:05.001Z&quot;
+    },
+    {
+      &quot;id&quot;: &quot;ord_mq4mn0xptd1j5u&quot;,
+      &quot;orderNo&quot;: &quot;2026060888526933&quot;,
+      &quot;userId&quot;: &quot;usr_mq4mn0xpqypf7y&quot;,
+      &quot;items&quot;: [
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xp7qnz2f&quot;,
+          &quot;productId&quot;: &quot;prod_005&quot;,
+          &quot;productName&quot;: &quot;USB-C 扩展坞&quot;,
+          &quot;price&quot;: 259,
+          &quot;quantity&quot;: 1,
+          &quot;subtotal&quot;: 259
+        }
+      ],
+      &quot;totalAmount&quot;: 259,
+      &quot;status&quot;: &quot;delivered&quot;,
+      &quot;paymentMethod&quot;: &quot;card&quot;,
+      &quot;shippingAddress&quot;: {
+        &quot;name&quot;: &quot;用户yu&quot;,
+        &quot;phone&quot;: &quot;13867870693&quot;,
+        &quot;province&quot;: &quot;广东省&quot;,
+        &quot;city&quot;: &quot;佛山市&quot;,
+        &quot;district&quot;: &quot;南山区&quot;,
+        &quot;address&quot;: &quot;南山区某某路191号2栋6单元&quot;,
+        &quot;zipCode&quot;: &quot;496453&quot;
+      },
+      &quot;createdAt&quot;: &quot;2026-06-05T09:16:30.286Z&quot;,
+      &quot;paidAt&quot;: &quot;2026-06-05T10:02:30.286Z&quot;,
+      &quot;shippedAt&quot;: &quot;2026-06-05T23:02:30.286Z&quot;,
+      &quot;deliveredAt&quot;: &quot;2026-06-08T13:02:30.286Z&quot;
+    },
+    {
+      &quot;id&quot;: &quot;ord_mq4mn0xpczfxiy&quot;,
+      &quot;orderNo&quot;: &quot;2026060878754626&quot;,
+      &quot;userId&quot;: &quot;usr_mq4mn0xpa9yiy5&quot;,
+      &quot;items&quot;: [
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpwaj58v&quot;,
+          &quot;productId&quot;: &quot;prod_006&quot;,
+          &quot;productName&quot;: &quot;移动固态硬盘 1TB&quot;,
+          &quot;price&quot;: 599,
+          &quot;quantity&quot;: 2,
+          &quot;subtotal&quot;: 1198
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpsbltq8&quot;,
+          &quot;productId&quot;: &quot;prod_007&quot;,
+          &quot;productName&quot;: &quot;笔记本电脑支架&quot;,
+          &quot;price&quot;: 159,
+          &quot;quantity&quot;: 2,
+          &quot;subtotal&quot;: 318
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpjyy3o2&quot;,
+          &quot;productId&quot;: &quot;prod_008&quot;,
+          &quot;productName&quot;: &quot;桌面收纳盒&quot;,
+          &quot;price&quot;: 89,
+          &quot;quantity&quot;: 2,
+          &quot;subtotal&quot;: 178
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpfa60vm&quot;,
+          &quot;productId&quot;: &quot;prod_002&quot;,
+          &quot;productName&quot;: &quot;机械键盘&quot;,
+          &quot;price&quot;: 459,
+          &quot;quantity&quot;: 2,
+          &quot;subtotal&quot;: 918
+        }
+      ],
+      &quot;totalAmount&quot;: 2612,
+      &quot;status&quot;: &quot;delivered&quot;,
+      &quot;paymentMethod&quot;: &quot;card&quot;,
+      &quot;shippingAddress&quot;: {
+        &quot;name&quot;: &quot;用户il&quot;,
+        &quot;phone&quot;: &quot;13870682573&quot;,
+        &quot;province&quot;: &quot;北京市&quot;,
+        &quot;city&quot;: &quot;北京市&quot;,
+        &quot;district&quot;: &quot;朝阳区&quot;,
+        &quot;address&quot;: &quot;朝阳区某某路631号15栋18单元&quot;,
+        &quot;zipCode&quot;: &quot;904665&quot;
+      },
+      &quot;createdAt&quot;: &quot;2026-05-21T18:09:38.734Z&quot;,
+      &quot;paidAt&quot;: &quot;2026-05-21T18:50:38.734Z&quot;,
+      &quot;shippedAt&quot;: &quot;2026-05-22T17:50:38.734Z&quot;,
+      &quot;deliveredAt&quot;: &quot;2026-05-24T05:50:38.734Z&quot;,
+      &quot;remark&quot;: &quot;测试订单，请勿发货&quot;
+    },
+    {
+      &quot;id&quot;: &quot;ord_mq4mn0xpvnx4hd&quot;,
+      &quot;orderNo&quot;: &quot;2026060863986202&quot;,
+      &quot;userId&quot;: &quot;usr_mq4mn0xpi4u17e&quot;,
+      &quot;items&quot;: [
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xp7of497&quot;,
+          &quot;productId&quot;: &quot;prod_001&quot;,
+          &quot;productName&quot;: &quot;无线蓝牙耳机&quot;,
+          &quot;price&quot;: 299,
+          &quot;quantity&quot;: 2,
+          &quot;subtotal&quot;: 598
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpw79105&quot;,
+          &quot;productId&quot;: &quot;prod_006&quot;,
+          &quot;productName&quot;: &quot;移动固态硬盘 1TB&quot;,
+          &quot;price&quot;: 599,
+          &quot;quantity&quot;: 3,
+          &quot;subtotal&quot;: 1797
+        }
+      ],
+      &quot;totalAmount&quot;: 2395,
+      &quot;status&quot;: &quot;cancelled&quot;,
+      &quot;paymentMethod&quot;: &quot;wechat&quot;,
+      &quot;shippingAddress&quot;: {
+        &quot;name&quot;: &quot;用户zb&quot;,
+        &quot;phone&quot;: &quot;13851094769&quot;,
+        &quot;province&quot;: &quot;湖北省&quot;,
+        &quot;city&quot;: &quot;襄阳市&quot;,
+        &quot;district&quot;: &quot;东城区&quot;,
+        &quot;address&quot;: &quot;东城区某某路975号4栋15单元&quot;,
+        &quot;zipCode&quot;: &quot;347159&quot;
+      },
+      &quot;createdAt&quot;: &quot;2026-05-27T04:42:09.963Z&quot;
+    },
+    {
+      &quot;id&quot;: &quot;ord_mq4mn0xp7m5lee&quot;,
+      &quot;orderNo&quot;: &quot;2026060821692034&quot;,
+      &quot;userId&quot;: &quot;usr_mq4mn0xpop4s6h&quot;,
+      &quot;items&quot;: [
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpl5u9lc&quot;,
+          &quot;productId&quot;: &quot;prod_001&quot;,
+          &quot;productName&quot;: &quot;无线蓝牙耳机&quot;,
+          &quot;price&quot;: 299,
+          &quot;quantity&quot;: 1,
+          &quot;subtotal&quot;: 299
+        }
+      ],
+      &quot;totalAmount&quot;: 299,
+      &quot;status&quot;: &quot;delivered&quot;,
+      &quot;paymentMethod&quot;: &quot;wechat&quot;,
+      &quot;shippingAddress&quot;: {
+        &quot;name&quot;: &quot;用户hx&quot;,
+        &quot;phone&quot;: &quot;13828573949&quot;,
+        &quot;province&quot;: &quot;江苏省&quot;,
+        &quot;city&quot;: &quot;苏州市&quot;,
+        &quot;district&quot;: &quot;海淀区&quot;,
+        &quot;address&quot;: &quot;海淀区某某路788号7栋6单元&quot;,
+        &quot;zipCode&quot;: &quot;213764&quot;
+      },
+      &quot;createdAt&quot;: &quot;2026-06-07T01:00:20.686Z&quot;,
+      &quot;paidAt&quot;: &quot;2026-06-07T01:29:20.686Z&quot;,
+      &quot;shippedAt&quot;: &quot;2026-06-07T05:29:20.686Z&quot;,
+      &quot;deliveredAt&quot;: &quot;2026-06-08T19:29:20.686Z&quot;
+    },
+    {
+      &quot;id&quot;: &quot;ord_mq4mn0xpma0yhn&quot;,
+      &quot;orderNo&quot;: &quot;2026060845304803&quot;,
+      &quot;userId&quot;: &quot;usr_mq4mn0xp9vb5le&quot;,
+      &quot;items&quot;: [
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xp58hwjh&quot;,
+          &quot;productId&quot;: &quot;prod_008&quot;,
+          &quot;productName&quot;: &quot;桌面收纳盒&quot;,
+          &quot;price&quot;: 89,
+          &quot;quantity&quot;: 2,
+          &quot;subtotal&quot;: 178
+        }
+      ],
+      &quot;totalAmount&quot;: 178,
+      &quot;status&quot;: &quot;refunded&quot;,
+      &quot;paymentMethod&quot;: &quot;card&quot;,
+      &quot;shippingAddress&quot;: {
+        &quot;name&quot;: &quot;用户pp&quot;,
+        &quot;phone&quot;: &quot;13893366501&quot;,
+        &quot;province&quot;: &quot;上海市&quot;,
+        &quot;city&quot;: &quot;上海市&quot;,
+        &quot;district&quot;: &quot;天河区&quot;,
+        &quot;address&quot;: &quot;天河区某某路792号2栋1单元&quot;,
+        &quot;zipCode&quot;: &quot;102058&quot;
+      },
+      &quot;createdAt&quot;: &quot;2026-05-19T00:01:28.005Z&quot;,
+      &quot;paidAt&quot;: &quot;2026-05-19T00:29:28.005Z&quot;
+    },
+    {
+      &quot;id&quot;: &quot;ord_mq4mn0xpqzgdgs&quot;,
+      &quot;orderNo&quot;: &quot;2026060809605220&quot;,
+      &quot;userId&quot;: &quot;usr_mq4mn0xpqqen5w&quot;,
+      &quot;items&quot;: [
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xp4kdyzg&quot;,
+          &quot;productId&quot;: &quot;prod_004&quot;,
+          &quot;productName&quot;: &quot;显示器支架&quot;,
+          &quot;price&quot;: 399,
+          &quot;quantity&quot;: 1,
+          &quot;subtotal&quot;: 399
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xp6dis0q&quot;,
+          &quot;productId&quot;: &quot;prod_006&quot;,
+          &quot;productName&quot;: &quot;移动固态硬盘 1TB&quot;,
+          &quot;price&quot;: 599,
+          &quot;quantity&quot;: 2,
+          &quot;subtotal&quot;: 1198
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpfqolqn&quot;,
+          &quot;productId&quot;: &quot;prod_008&quot;,
+          &quot;productName&quot;: &quot;桌面收纳盒&quot;,
+          &quot;price&quot;: 89,
+          &quot;quantity&quot;: 1,
+          &quot;subtotal&quot;: 89
+        }
+      ],
+      &quot;totalAmount&quot;: 1686,
+      &quot;status&quot;: &quot;shipped&quot;,
+      &quot;paymentMethod&quot;: &quot;card&quot;,
+      &quot;shippingAddress&quot;: {
+        &quot;name&quot;: &quot;用户lr&quot;,
+        &quot;phone&quot;: &quot;13859587423&quot;,
+        &quot;province&quot;: &quot;江苏省&quot;,
+        &quot;city&quot;: &quot;常州市&quot;,
+        &quot;district&quot;: &quot;海淀区&quot;,
+        &quot;address&quot;: &quot;海淀区某某路822号29栋21单元&quot;,
+        &quot;zipCode&quot;: &quot;405592&quot;
+      },
+      &quot;createdAt&quot;: &quot;2026-06-07T22:13:51.354Z&quot;,
+      &quot;paidAt&quot;: &quot;2026-06-07T23:04:51.354Z&quot;,
+      &quot;shippedAt&quot;: &quot;2026-06-08T10:04:51.354Z&quot;
+    },
+    {
+      &quot;id&quot;: &quot;ord_mq4mn0xpjiy7p0&quot;,
+      &quot;orderNo&quot;: &quot;2026060876484663&quot;,
+      &quot;userId&quot;: &quot;usr_mq4mn0xpaya1vl&quot;,
+      &quot;items&quot;: [
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpe7y0wl&quot;,
+          &quot;productId&quot;: &quot;prod_004&quot;,
+          &quot;productName&quot;: &quot;显示器支架&quot;,
+          &quot;price&quot;: 399,
+          &quot;quantity&quot;: 3,
+          &quot;subtotal&quot;: 1197
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xp15ondo&quot;,
+          &quot;productId&quot;: &quot;prod_003&quot;,
+          &quot;productName&quot;: &quot;游戏鼠标&quot;,
+          &quot;price&quot;: 189,
+          &quot;quantity&quot;: 1,
+          &quot;subtotal&quot;: 189
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpyellrr&quot;,
+          &quot;productId&quot;: &quot;prod_002&quot;,
+          &quot;productName&quot;: &quot;机械键盘&quot;,
+          &quot;price&quot;: 459,
+          &quot;quantity&quot;: 2,
+          &quot;subtotal&quot;: 918
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpdx36g1&quot;,
+          &quot;productId&quot;: &quot;prod_005&quot;,
+          &quot;productName&quot;: &quot;USB-C 扩展坞&quot;,
+          &quot;price&quot;: 259,
+          &quot;quantity&quot;: 2,
+          &quot;subtotal&quot;: 518
+        }
+      ],
+      &quot;totalAmount&quot;: 2822,
+      &quot;status&quot;: &quot;cancelled&quot;,
+      &quot;paymentMethod&quot;: &quot;bank&quot;,
+      &quot;shippingAddress&quot;: {
+        &quot;name&quot;: &quot;用户gk&quot;,
+        &quot;phone&quot;: &quot;13855342711&quot;,
+        &quot;province&quot;: &quot;江苏省&quot;,
+        &quot;city&quot;: &quot;常州市&quot;,
+        &quot;district&quot;: &quot;福田区&quot;,
+        &quot;address&quot;: &quot;福田区某某路544号25栋25单元&quot;,
+        &quot;zipCode&quot;: &quot;476095&quot;
+      },
+      &quot;createdAt&quot;: &quot;2026-05-27T22:02:57.679Z&quot;
+    }
+  ]
+}</div>
+        </div>
+        
+        
+        
+      </div>
+    </div>
+    <div class="step passed">
+      <div class="step-header" onclick="toggleStep(this)">
+        <span class="step-name">
+          <span class="toggle-icon" style="margin-right: 6px;"></span>
+          验证返回数据
+        </span>
+        <span class="step-duration">0ms</span>
+      </div>
+      
+    </div></div>
+      </div>
+    </div>
+    <div class="test-case passed">
+      <div class="test-case-header" onclick="toggleTestCase(this)">
+        <div class="test-case-title">
+          <span class="toggle-icon">▶</span>
+          <span class="status-badge passed">通过</span>
+          <h3>参数化-账号登录 - user_1_cnyE</h3>
+          <span class="data-set-badge" title="user_1_cnyE, shouldPass=true">user_1_cnyE</span>
+          <span class="priority high">high</span>
+        </div>
+        <div class="test-case-meta">
+          <span>⏱️ 0ms</span>
+          <span>🔄 0次重试</span>
+          <span>📝 2步骤</span>
+        </div>
+      </div>
+      <div class="test-case-body">
+        <div class="tags"><span class="tag">参数化</span><span class="tag">登录</span></div>
+        <p style="margin-top: 8px; color: #666; font-size: 13px;">用不同账号测试登录</p>
+        <div class="step-section">
+          <div class="step-section-title">测试数据</div>
+          <div class="step-section-content">user_1_cnyE, shouldPass=true</div>
+        </div>
+        
+        
+        
+        <div class="steps"><h4 style="margin-bottom: 8px; font-size: 13px;">📋 步骤详情 (2)</h4>
+    <div class="step passed">
+      <div class="step-header" onclick="toggleStep(this)">
+        <span class="step-name">
+          <span class="toggle-icon" style="margin-right: 6px;">▶</span>
+          用户登录
+        </span>
+        <span class="step-duration">0ms</span>
+      </div>
+      <div class="step-body">
+        
+        <div class="step-section">
+          <div class="step-section-title">输出</div>
+          <div class="step-section-content">{
+  &quot;username&quot;: &quot;user_1_cnyE&quot;
+}</div>
+        </div>
+        
+        
+        
+      </div>
+    </div>
+    <div class="step passed">
+      <div class="step-header" onclick="toggleStep(this)">
+        <span class="step-name">
+          <span class="toggle-icon" style="margin-right: 6px;">▶</span>
+          验证登录结果
+        </span>
+        <span class="step-duration">0ms</span>
+      </div>
+      <div class="step-body">
+        
+        <div class="step-section">
+          <div class="step-section-title">输出</div>
+          <div class="step-section-content">{
+  &quot;success&quot;: true
+}</div>
+        </div>
+        
+        
+        
+      </div>
+    </div></div>
+      </div>
+    </div>
+    <div class="test-case passed">
+      <div class="test-case-header" onclick="toggleTestCase(this)">
+        <div class="test-case-title">
+          <span class="toggle-icon">▶</span>
+          <span class="status-badge passed">通过</span>
+          <h3>参数化-账号登录 - user_2_hTOv</h3>
+          <span class="data-set-badge" title="user_2_hTOv, shouldPass=true">user_2_hTOv</span>
+          <span class="priority high">high</span>
+        </div>
+        <div class="test-case-meta">
+          <span>⏱️ 0ms</span>
+          <span>🔄 0次重试</span>
+          <span>📝 2步骤</span>
+        </div>
+      </div>
+      <div class="test-case-body">
+        <div class="tags"><span class="tag">参数化</span><span class="tag">登录</span></div>
+        <p style="margin-top: 8px; color: #666; font-size: 13px;">用不同账号测试登录</p>
+        <div class="step-section">
+          <div class="step-section-title">测试数据</div>
+          <div class="step-section-content">user_2_hTOv, shouldPass=true</div>
+        </div>
+        
+        
+        
+        <div class="steps"><h4 style="margin-bottom: 8px; font-size: 13px;">📋 步骤详情 (2)</h4>
+    <div class="step passed">
+      <div class="step-header" onclick="toggleStep(this)">
+        <span class="step-name">
+          <span class="toggle-icon" style="margin-right: 6px;">▶</span>
+          用户登录
+        </span>
+        <span class="step-duration">0ms</span>
+      </div>
+      <div class="step-body">
+        
+        <div class="step-section">
+          <div class="step-section-title">输出</div>
+          <div class="step-section-content">{
+  &quot;username&quot;: &quot;user_2_hTOv&quot;
+}</div>
+        </div>
+        
+        
+        
+      </div>
+    </div>
+    <div class="step passed">
+      <div class="step-header" onclick="toggleStep(this)">
+        <span class="step-name">
+          <span class="toggle-icon" style="margin-right: 6px;">▶</span>
+          验证登录结果
+        </span>
+        <span class="step-duration">0ms</span>
+      </div>
+      <div class="step-body">
+        
+        <div class="step-section">
+          <div class="step-section-title">输出</div>
+          <div class="step-section-content">{
+  &quot;success&quot;: true
+}</div>
+        </div>
+        
+        
+        
+      </div>
+    </div></div>
+      </div>
+    </div>
+      </div>
+
+      
+      <div id="tab-skipped" class="tab-content">
+        
+    <div class="test-case skipped">
+      <div class="test-case-header" onclick="toggleTestCase(this)">
+        <div class="test-case-title">
+          <span class="toggle-icon">▶</span>
+          <span class="status-badge skipped">跳过</span>
+          <h3>被跳过的测试用例</h3>
+          
+          <span class="priority low">low</span>
+        </div>
+        <div class="test-case-meta">
+          <span>⏱️ 0ms</span>
+          <span>🔄 0次重试</span>
+          <span>📝 0步骤</span>
+        </div>
+      </div>
+      <div class="test-case-body">
+        <div class="tags"><span class="tag">演示</span><span class="tag">跳过</span></div>
+        <p style="margin-top: 8px; color: #666; font-size: 13px;">这个用例会被跳过，用于演示跳过统计</p>
+        
+        
+        
+        
+        
+      </div>
+    </div>
+      </div>
+
+      <div id="tab-all" class="tab-content">
+        
+    <div class="test-case skipped">
+      <div class="test-case-header" onclick="toggleTestCase(this)">
+        <div class="test-case-title">
+          <span class="toggle-icon">▶</span>
+          <span class="status-badge skipped">跳过</span>
+          <h3>被跳过的测试用例</h3>
+          
+          <span class="priority low">low</span>
+        </div>
+        <div class="test-case-meta">
+          <span>⏱️ 0ms</span>
+          <span>🔄 0次重试</span>
+          <span>📝 0步骤</span>
+        </div>
+      </div>
+      <div class="test-case-body">
+        <div class="tags"><span class="tag">演示</span><span class="tag">跳过</span></div>
+        <p style="margin-top: 8px; color: #666; font-size: 13px;">这个用例会被跳过，用于演示跳过统计</p>
+        
+        
+        
+        
+        
+      </div>
+    </div>
+    <div class="test-case passed">
+      <div class="test-case-header" onclick="toggleTestCase(this)">
+        <div class="test-case-title">
+          <span class="toggle-icon">▶</span>
+          <span class="status-badge passed">通过</span>
+          <h3>创建订单测试</h3>
+          
+          <span class="priority critical">critical</span>
+        </div>
+        <div class="test-case-meta">
+          <span>⏱️ 1ms</span>
+          <span>🔄 0次重试</span>
+          <span>📝 3步骤</span>
+        </div>
+      </div>
+      <div class="test-case-body">
+        <div class="tags"><span class="tag">订单</span><span class="tag">创建</span></div>
+        <p style="margin-top: 8px; color: #666; font-size: 13px;">测试创建订单接口</p>
+        
+        
+        
+        
+        <div class="steps"><h4 style="margin-bottom: 8px; font-size: 13px;">📋 步骤详情 (3)</h4>
+    <div class="step passed">
+      <div class="step-header" onclick="toggleStep(this)">
+        <span class="step-name">
+          <span class="toggle-icon" style="margin-right: 6px;">▶</span>
+          准备订单数据
+        </span>
+        <span class="step-duration">0ms</span>
+      </div>
+      <div class="step-body">
+        
+        <div class="step-section">
+          <div class="step-section-title">输出</div>
+          <div class="step-section-content">{
+  &quot;id&quot;: &quot;ord_mq4mn0xpnnc57s&quot;,
+  &quot;orderNo&quot;: &quot;2026060838961570&quot;,
+  &quot;userId&quot;: &quot;usr_mq4mn0xphxpd78&quot;,
+  &quot;items&quot;: [
+    {
+      &quot;id&quot;: &quot;item_mq4mn0xp2cjw1i&quot;,
+      &quot;productId&quot;: &quot;prod_006&quot;,
+      &quot;productName&quot;: &quot;移动固态硬盘 1TB&quot;,
+      &quot;price&quot;: 599,
+      &quot;quantity&quot;: 1,
+      &quot;subtotal&quot;: 599
+    },
+    {
+      &quot;id&quot;: &quot;item_mq4mn0xpl1qtlj&quot;,
+      &quot;productId&quot;: &quot;prod_003&quot;,
+      &quot;productName&quot;: &quot;游戏鼠标&quot;,
+      &quot;price&quot;: 189,
+      &quot;quantity&quot;: 2,
+      &quot;subtotal&quot;: 378
+    },
+    {
+      &quot;id&quot;: &quot;item_mq4mn0xpop44e1&quot;,
+      &quot;productId&quot;: &quot;prod_005&quot;,
+      &quot;productName&quot;: &quot;USB-C 扩展坞&quot;,
+      &quot;price&quot;: 259,
+      &quot;quantity&quot;: 2,
+      &quot;subtotal&quot;: 518
+    },
+    {
+      &quot;id&quot;: &quot;item_mq4mn0xpk4vazk&quot;,
+      &quot;productId&quot;: &quot;prod_004&quot;,
+      &quot;productName&quot;: &quot;显示器支架&quot;,
+      &quot;price&quot;: 399,
+      &quot;quantity&quot;: 1,
+      &quot;subtotal&quot;: 399
+    },
+    {
+      &quot;id&quot;: &quot;item_mq4mn0xp1o0zb0&quot;,
+      &quot;productId&quot;: &quot;prod_001&quot;,
+      &quot;productName&quot;: &quot;无线蓝牙耳机&quot;,
+      &quot;price&quot;: 299,
+      &quot;quantity&quot;: 1,
+      &quot;subtotal&quot;: 299
+    }
+  ],
+  &quot;totalAmount&quot;: 2193,
+  &quot;status&quot;: &quot;delivered&quot;,
+  &quot;paymentMethod&quot;: &quot;wechat&quot;,
+  &quot;shippingAddress&quot;: {
+    &quot;name&quot;: &quot;用户kv&quot;,
+    &quot;phone&quot;: &quot;13861993699&quot;,
+    &quot;province&quot;: &quot;山东省&quot;,
+    &quot;city&quot;: &quot;潍坊市&quot;,
+    &quot;district&quot;: &quot;福田区&quot;,
+    &quot;address&quot;: &quot;福田区某某路867号24栋23单元&quot;,
+    &quot;zipCode&quot;: &quot;543856&quot;
+  },
+  &quot;createdAt&quot;: &quot;2026-06-06T08:33:20.709Z&quot;,
+  &quot;paidAt&quot;: &quot;2026-06-06T08:54:20.709Z&quot;,
+  &quot;shippedAt&quot;: &quot;2026-06-06T22:54:20.709Z&quot;,
+  &quot;deliveredAt&quot;: &quot;2026-06-07T15:54:20.709Z&quot;,
+  &quot;remark&quot;: &quot;测试订单，请勿发货&quot;
+}</div>
+        </div>
+        
+        
+        
+      </div>
+    </div>
+    <div class="step passed">
+      <div class="step-header" onclick="toggleStep(this)">
+        <span class="step-name">
+          <span class="toggle-icon" style="margin-right: 6px;">▶</span>
+          提交订单
+        </span>
+        <span class="step-duration">0ms</span>
+      </div>
+      <div class="step-body">
+        
+        <div class="step-section">
+          <div class="step-section-title">输出</div>
+          <div class="step-section-content">{
+  &quot;orderId&quot;: &quot;ord_mq4mn0xpnnc57s&quot;,
+  &quot;status&quot;: &quot;created&quot;
+}</div>
+        </div>
+        
+        
+        
+      </div>
+    </div>
+    <div class="step passed">
+      <div class="step-header" onclick="toggleStep(this)">
+        <span class="step-name">
+          <span class="toggle-icon" style="margin-right: 6px;"></span>
+          验证订单状态
+        </span>
+        <span class="step-duration">0ms</span>
+      </div>
+      
+    </div></div>
+      </div>
+    </div>
+    <div class="test-case passed">
+      <div class="test-case-header" onclick="toggleTestCase(this)">
+        <div class="test-case-title">
+          <span class="toggle-icon">▶</span>
+          <span class="status-badge passed">通过</span>
+          <h3>串行执行的测试用例</h3>
+          
+          <span class="priority medium">medium</span>
+        </div>
+        <div class="test-case-meta">
+          <span>⏱️ 0ms</span>
+          <span>🔄 0次重试</span>
+          <span>📝 1步骤</span>
+        </div>
+      </div>
+      <div class="test-case-body">
+        <div class="tags"><span class="tag">串行</span><span class="tag">演示</span></div>
+        <p style="margin-top: 8px; color: #666; font-size: 13px;">带有串行标签，会串行执行</p>
+        
+        
+        
+        
+        <div class="steps"><h4 style="margin-bottom: 8px; font-size: 13px;">📋 步骤详情 (1)</h4>
+    <div class="step passed">
+      <div class="step-header" onclick="toggleStep(this)">
+        <span class="step-name">
+          <span class="toggle-icon" style="margin-right: 6px;">▶</span>
+          执行串行操作
+        </span>
+        <span class="step-duration">0ms</span>
+      </div>
+      <div class="step-body">
+        
+        <div class="step-section">
+          <div class="step-section-title">输出</div>
+          <div class="step-section-content">{
+  &quot;ok&quot;: true
+}</div>
+        </div>
+        
+        
+        
+      </div>
+    </div></div>
+      </div>
+    </div>
+    <div class="test-case passed">
+      <div class="test-case-header" onclick="toggleTestCase(this)">
+        <div class="test-case-title">
+          <span class="toggle-icon">▶</span>
+          <span class="status-badge passed">通过</span>
+          <h3>用户登录测试</h3>
+          
+          <span class="priority high">high</span>
+        </div>
+        <div class="test-case-meta">
+          <span>⏱️ 1ms</span>
+          <span>🔄 0次重试</span>
+          <span>📝 2步骤</span>
+        </div>
+      </div>
+      <div class="test-case-body">
+        <div class="tags"><span class="tag">登录</span><span class="tag">用户</span></div>
+        <p style="margin-top: 8px; color: #666; font-size: 13px;">测试用户登录功能是否正常</p>
+        
+        
+        
+        
+        <div class="steps"><h4 style="margin-bottom: 8px; font-size: 13px;">📋 步骤详情 (2)</h4>
+    <div class="step passed">
+      <div class="step-header" onclick="toggleStep(this)">
+        <span class="step-name">
+          <span class="toggle-icon" style="margin-right: 6px;">▶</span>
+          输入用户名密码
+        </span>
+        <span class="step-duration">0ms</span>
+      </div>
+      <div class="step-body">
+        
+        <div class="step-section">
+          <div class="step-section-title">输出</div>
+          <div class="step-section-content">{
+  &quot;username&quot;: &quot;test_user&quot;,
+  &quot;password&quot;: &quot;******&quot;
+}</div>
+        </div>
+        
+        
+        
+      </div>
+    </div>
+    <div class="step passed">
+      <div class="step-header" onclick="toggleStep(this)">
+        <span class="step-name">
+          <span class="toggle-icon" style="margin-right: 6px;">▶</span>
+          验证登录结果
+        </span>
+        <span class="step-duration">0ms</span>
+      </div>
+      <div class="step-body">
+        
+        <div class="step-section">
+          <div class="step-section-title">输出</div>
+          <div class="step-section-content">{
+  &quot;success&quot;: true,
+  &quot;token&quot;: &quot;mock_token_123&quot;
+}</div>
+        </div>
+        
+        
+        
+      </div>
+    </div></div>
+      </div>
+    </div>
+    <div class="test-case passed">
+      <div class="test-case-header" onclick="toggleTestCase(this)">
+        <div class="test-case-title">
+          <span class="toggle-icon">▶</span>
+          <span class="status-badge passed">通过</span>
+          <h3>查询订单列表测试</h3>
+          
+          <span class="priority medium">medium</span>
+        </div>
+        <div class="test-case-meta">
+          <span>⏱️ 1ms</span>
+          <span>🔄 0次重试</span>
+          <span>📝 2步骤</span>
+        </div>
+      </div>
+      <div class="test-case-body">
+        <div class="tags"><span class="tag">订单</span><span class="tag">查询</span></div>
+        <p style="margin-top: 8px; color: #666; font-size: 13px;">测试订单列表查询</p>
+        
+        
+        
+        
+        <div class="steps"><h4 style="margin-bottom: 8px; font-size: 13px;">📋 步骤详情 (2)</h4>
+    <div class="step passed">
+      <div class="step-header" onclick="toggleStep(this)">
+        <span class="step-name">
+          <span class="toggle-icon" style="margin-right: 6px;">▶</span>
+          查询订单列表
+        </span>
+        <span class="step-duration">0ms</span>
+      </div>
+      <div class="step-body">
+        
+        <div class="step-section">
+          <div class="step-section-title">输出</div>
+          <div class="step-section-content">{
+  &quot;total&quot;: 10,
+  &quot;list&quot;: [
+    {
+      &quot;id&quot;: &quot;ord_mq4mn0xpnnc57s&quot;,
+      &quot;orderNo&quot;: &quot;2026060838961570&quot;,
+      &quot;userId&quot;: &quot;usr_mq4mn0xphxpd78&quot;,
+      &quot;items&quot;: [
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xp2cjw1i&quot;,
+          &quot;productId&quot;: &quot;prod_006&quot;,
+          &quot;productName&quot;: &quot;移动固态硬盘 1TB&quot;,
+          &quot;price&quot;: 599,
+          &quot;quantity&quot;: 1,
+          &quot;subtotal&quot;: 599
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpl1qtlj&quot;,
+          &quot;productId&quot;: &quot;prod_003&quot;,
+          &quot;productName&quot;: &quot;游戏鼠标&quot;,
+          &quot;price&quot;: 189,
+          &quot;quantity&quot;: 2,
+          &quot;subtotal&quot;: 378
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpop44e1&quot;,
+          &quot;productId&quot;: &quot;prod_005&quot;,
+          &quot;productName&quot;: &quot;USB-C 扩展坞&quot;,
+          &quot;price&quot;: 259,
+          &quot;quantity&quot;: 2,
+          &quot;subtotal&quot;: 518
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpk4vazk&quot;,
+          &quot;productId&quot;: &quot;prod_004&quot;,
+          &quot;productName&quot;: &quot;显示器支架&quot;,
+          &quot;price&quot;: 399,
+          &quot;quantity&quot;: 1,
+          &quot;subtotal&quot;: 399
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xp1o0zb0&quot;,
+          &quot;productId&quot;: &quot;prod_001&quot;,
+          &quot;productName&quot;: &quot;无线蓝牙耳机&quot;,
+          &quot;price&quot;: 299,
+          &quot;quantity&quot;: 1,
+          &quot;subtotal&quot;: 299
+        }
+      ],
+      &quot;totalAmount&quot;: 2193,
+      &quot;status&quot;: &quot;delivered&quot;,
+      &quot;paymentMethod&quot;: &quot;wechat&quot;,
+      &quot;shippingAddress&quot;: {
+        &quot;name&quot;: &quot;用户kv&quot;,
+        &quot;phone&quot;: &quot;13861993699&quot;,
+        &quot;province&quot;: &quot;山东省&quot;,
+        &quot;city&quot;: &quot;潍坊市&quot;,
+        &quot;district&quot;: &quot;福田区&quot;,
+        &quot;address&quot;: &quot;福田区某某路867号24栋23单元&quot;,
+        &quot;zipCode&quot;: &quot;543856&quot;
+      },
+      &quot;createdAt&quot;: &quot;2026-06-06T08:33:20.709Z&quot;,
+      &quot;paidAt&quot;: &quot;2026-06-06T08:54:20.709Z&quot;,
+      &quot;shippedAt&quot;: &quot;2026-06-06T22:54:20.709Z&quot;,
+      &quot;deliveredAt&quot;: &quot;2026-06-07T15:54:20.709Z&quot;,
+      &quot;remark&quot;: &quot;测试订单，请勿发货&quot;
+    },
+    {
+      &quot;id&quot;: &quot;ord_mq4mn0xpjqj7mv&quot;,
+      &quot;orderNo&quot;: &quot;2026060898830377&quot;,
+      &quot;userId&quot;: &quot;usr_mq4mn0xpxkd8oq&quot;,
+      &quot;items&quot;: [
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpsbwhu3&quot;,
+          &quot;productId&quot;: &quot;prod_008&quot;,
+          &quot;productName&quot;: &quot;桌面收纳盒&quot;,
+          &quot;price&quot;: 89,
+          &quot;quantity&quot;: 3,
+          &quot;subtotal&quot;: 267
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpjy7jna&quot;,
+          &quot;productId&quot;: &quot;prod_004&quot;,
+          &quot;productName&quot;: &quot;显示器支架&quot;,
+          &quot;price&quot;: 399,
+          &quot;quantity&quot;: 2,
+          &quot;subtotal&quot;: 798
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpbiupqk&quot;,
+          &quot;productId&quot;: &quot;prod_006&quot;,
+          &quot;productName&quot;: &quot;移动固态硬盘 1TB&quot;,
+          &quot;price&quot;: 599,
+          &quot;quantity&quot;: 2,
+          &quot;subtotal&quot;: 1198
+        }
+      ],
+      &quot;totalAmount&quot;: 2263,
+      &quot;status&quot;: &quot;shipped&quot;,
+      &quot;paymentMethod&quot;: &quot;card&quot;,
+      &quot;shippingAddress&quot;: {
+        &quot;name&quot;: &quot;用户np&quot;,
+        &quot;phone&quot;: &quot;13827852919&quot;,
+        &quot;province&quot;: &quot;山东省&quot;,
+        &quot;city&quot;: &quot;烟台市&quot;,
+        &quot;district&quot;: &quot;福田区&quot;,
+        &quot;address&quot;: &quot;福田区某某路369号13栋26单元&quot;,
+        &quot;zipCode&quot;: &quot;169778&quot;
+      },
+      &quot;createdAt&quot;: &quot;2026-05-21T08:06:15.073Z&quot;,
+      &quot;paidAt&quot;: &quot;2026-05-21T08:48:15.073Z&quot;,
+      &quot;shippedAt&quot;: &quot;2026-05-21T10:48:15.073Z&quot;,
+      &quot;remark&quot;: &quot;测试订单，请勿发货&quot;
+    },
+    {
+      &quot;id&quot;: &quot;ord_mq4mn0xpsdfl70&quot;,
+      &quot;orderNo&quot;: &quot;2026060829029757&quot;,
+      &quot;userId&quot;: &quot;usr_mq4mn0xp46akye&quot;,
+      &quot;items&quot;: [
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpgr2wwg&quot;,
+          &quot;productId&quot;: &quot;prod_008&quot;,
+          &quot;productName&quot;: &quot;桌面收纳盒&quot;,
+          &quot;price&quot;: 89,
+          &quot;quantity&quot;: 3,
+          &quot;subtotal&quot;: 267
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xp4kyd2y&quot;,
+          &quot;productId&quot;: &quot;prod_002&quot;,
+          &quot;productName&quot;: &quot;机械键盘&quot;,
+          &quot;price&quot;: 459,
+          &quot;quantity&quot;: 2,
+          &quot;subtotal&quot;: 918
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpyju83w&quot;,
+          &quot;productId&quot;: &quot;prod_003&quot;,
+          &quot;productName&quot;: &quot;游戏鼠标&quot;,
+          &quot;price&quot;: 189,
+          &quot;quantity&quot;: 1,
+          &quot;subtotal&quot;: 189
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xp1krq3x&quot;,
+          &quot;productId&quot;: &quot;prod_006&quot;,
+          &quot;productName&quot;: &quot;移动固态硬盘 1TB&quot;,
+          &quot;price&quot;: 599,
+          &quot;quantity&quot;: 2,
+          &quot;subtotal&quot;: 1198
+        }
+      ],
+      &quot;totalAmount&quot;: 2572,
+      &quot;status&quot;: &quot;paid&quot;,
+      &quot;paymentMethod&quot;: &quot;card&quot;,
+      &quot;shippingAddress&quot;: {
+        &quot;name&quot;: &quot;用户jr&quot;,
+        &quot;phone&quot;: &quot;13877333276&quot;,
+        &quot;province&quot;: &quot;山东省&quot;,
+        &quot;city&quot;: &quot;济南市&quot;,
+        &quot;district&quot;: &quot;西城区&quot;,
+        &quot;address&quot;: &quot;西城区某某路42号3栋4单元&quot;,
+        &quot;zipCode&quot;: &quot;109397&quot;
+      },
+      &quot;createdAt&quot;: &quot;2026-05-11T23:39:05.001Z&quot;,
+      &quot;paidAt&quot;: &quot;2026-05-12T00:05:05.001Z&quot;
+    },
+    {
+      &quot;id&quot;: &quot;ord_mq4mn0xptd1j5u&quot;,
+      &quot;orderNo&quot;: &quot;2026060888526933&quot;,
+      &quot;userId&quot;: &quot;usr_mq4mn0xpqypf7y&quot;,
+      &quot;items&quot;: [
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xp7qnz2f&quot;,
+          &quot;productId&quot;: &quot;prod_005&quot;,
+          &quot;productName&quot;: &quot;USB-C 扩展坞&quot;,
+          &quot;price&quot;: 259,
+          &quot;quantity&quot;: 1,
+          &quot;subtotal&quot;: 259
+        }
+      ],
+      &quot;totalAmount&quot;: 259,
+      &quot;status&quot;: &quot;delivered&quot;,
+      &quot;paymentMethod&quot;: &quot;card&quot;,
+      &quot;shippingAddress&quot;: {
+        &quot;name&quot;: &quot;用户yu&quot;,
+        &quot;phone&quot;: &quot;13867870693&quot;,
+        &quot;province&quot;: &quot;广东省&quot;,
+        &quot;city&quot;: &quot;佛山市&quot;,
+        &quot;district&quot;: &quot;南山区&quot;,
+        &quot;address&quot;: &quot;南山区某某路191号2栋6单元&quot;,
+        &quot;zipCode&quot;: &quot;496453&quot;
+      },
+      &quot;createdAt&quot;: &quot;2026-06-05T09:16:30.286Z&quot;,
+      &quot;paidAt&quot;: &quot;2026-06-05T10:02:30.286Z&quot;,
+      &quot;shippedAt&quot;: &quot;2026-06-05T23:02:30.286Z&quot;,
+      &quot;deliveredAt&quot;: &quot;2026-06-08T13:02:30.286Z&quot;
+    },
+    {
+      &quot;id&quot;: &quot;ord_mq4mn0xpczfxiy&quot;,
+      &quot;orderNo&quot;: &quot;2026060878754626&quot;,
+      &quot;userId&quot;: &quot;usr_mq4mn0xpa9yiy5&quot;,
+      &quot;items&quot;: [
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpwaj58v&quot;,
+          &quot;productId&quot;: &quot;prod_006&quot;,
+          &quot;productName&quot;: &quot;移动固态硬盘 1TB&quot;,
+          &quot;price&quot;: 599,
+          &quot;quantity&quot;: 2,
+          &quot;subtotal&quot;: 1198
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpsbltq8&quot;,
+          &quot;productId&quot;: &quot;prod_007&quot;,
+          &quot;productName&quot;: &quot;笔记本电脑支架&quot;,
+          &quot;price&quot;: 159,
+          &quot;quantity&quot;: 2,
+          &quot;subtotal&quot;: 318
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpjyy3o2&quot;,
+          &quot;productId&quot;: &quot;prod_008&quot;,
+          &quot;productName&quot;: &quot;桌面收纳盒&quot;,
+          &quot;price&quot;: 89,
+          &quot;quantity&quot;: 2,
+          &quot;subtotal&quot;: 178
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpfa60vm&quot;,
+          &quot;productId&quot;: &quot;prod_002&quot;,
+          &quot;productName&quot;: &quot;机械键盘&quot;,
+          &quot;price&quot;: 459,
+          &quot;quantity&quot;: 2,
+          &quot;subtotal&quot;: 918
+        }
+      ],
+      &quot;totalAmount&quot;: 2612,
+      &quot;status&quot;: &quot;delivered&quot;,
+      &quot;paymentMethod&quot;: &quot;card&quot;,
+      &quot;shippingAddress&quot;: {
+        &quot;name&quot;: &quot;用户il&quot;,
+        &quot;phone&quot;: &quot;13870682573&quot;,
+        &quot;province&quot;: &quot;北京市&quot;,
+        &quot;city&quot;: &quot;北京市&quot;,
+        &quot;district&quot;: &quot;朝阳区&quot;,
+        &quot;address&quot;: &quot;朝阳区某某路631号15栋18单元&quot;,
+        &quot;zipCode&quot;: &quot;904665&quot;
+      },
+      &quot;createdAt&quot;: &quot;2026-05-21T18:09:38.734Z&quot;,
+      &quot;paidAt&quot;: &quot;2026-05-21T18:50:38.734Z&quot;,
+      &quot;shippedAt&quot;: &quot;2026-05-22T17:50:38.734Z&quot;,
+      &quot;deliveredAt&quot;: &quot;2026-05-24T05:50:38.734Z&quot;,
+      &quot;remark&quot;: &quot;测试订单，请勿发货&quot;
+    },
+    {
+      &quot;id&quot;: &quot;ord_mq4mn0xpvnx4hd&quot;,
+      &quot;orderNo&quot;: &quot;2026060863986202&quot;,
+      &quot;userId&quot;: &quot;usr_mq4mn0xpi4u17e&quot;,
+      &quot;items&quot;: [
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xp7of497&quot;,
+          &quot;productId&quot;: &quot;prod_001&quot;,
+          &quot;productName&quot;: &quot;无线蓝牙耳机&quot;,
+          &quot;price&quot;: 299,
+          &quot;quantity&quot;: 2,
+          &quot;subtotal&quot;: 598
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpw79105&quot;,
+          &quot;productId&quot;: &quot;prod_006&quot;,
+          &quot;productName&quot;: &quot;移动固态硬盘 1TB&quot;,
+          &quot;price&quot;: 599,
+          &quot;quantity&quot;: 3,
+          &quot;subtotal&quot;: 1797
+        }
+      ],
+      &quot;totalAmount&quot;: 2395,
+      &quot;status&quot;: &quot;cancelled&quot;,
+      &quot;paymentMethod&quot;: &quot;wechat&quot;,
+      &quot;shippingAddress&quot;: {
+        &quot;name&quot;: &quot;用户zb&quot;,
+        &quot;phone&quot;: &quot;13851094769&quot;,
+        &quot;province&quot;: &quot;湖北省&quot;,
+        &quot;city&quot;: &quot;襄阳市&quot;,
+        &quot;district&quot;: &quot;东城区&quot;,
+        &quot;address&quot;: &quot;东城区某某路975号4栋15单元&quot;,
+        &quot;zipCode&quot;: &quot;347159&quot;
+      },
+      &quot;createdAt&quot;: &quot;2026-05-27T04:42:09.963Z&quot;
+    },
+    {
+      &quot;id&quot;: &quot;ord_mq4mn0xp7m5lee&quot;,
+      &quot;orderNo&quot;: &quot;2026060821692034&quot;,
+      &quot;userId&quot;: &quot;usr_mq4mn0xpop4s6h&quot;,
+      &quot;items&quot;: [
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpl5u9lc&quot;,
+          &quot;productId&quot;: &quot;prod_001&quot;,
+          &quot;productName&quot;: &quot;无线蓝牙耳机&quot;,
+          &quot;price&quot;: 299,
+          &quot;quantity&quot;: 1,
+          &quot;subtotal&quot;: 299
+        }
+      ],
+      &quot;totalAmount&quot;: 299,
+      &quot;status&quot;: &quot;delivered&quot;,
+      &quot;paymentMethod&quot;: &quot;wechat&quot;,
+      &quot;shippingAddress&quot;: {
+        &quot;name&quot;: &quot;用户hx&quot;,
+        &quot;phone&quot;: &quot;13828573949&quot;,
+        &quot;province&quot;: &quot;江苏省&quot;,
+        &quot;city&quot;: &quot;苏州市&quot;,
+        &quot;district&quot;: &quot;海淀区&quot;,
+        &quot;address&quot;: &quot;海淀区某某路788号7栋6单元&quot;,
+        &quot;zipCode&quot;: &quot;213764&quot;
+      },
+      &quot;createdAt&quot;: &quot;2026-06-07T01:00:20.686Z&quot;,
+      &quot;paidAt&quot;: &quot;2026-06-07T01:29:20.686Z&quot;,
+      &quot;shippedAt&quot;: &quot;2026-06-07T05:29:20.686Z&quot;,
+      &quot;deliveredAt&quot;: &quot;2026-06-08T19:29:20.686Z&quot;
+    },
+    {
+      &quot;id&quot;: &quot;ord_mq4mn0xpma0yhn&quot;,
+      &quot;orderNo&quot;: &quot;2026060845304803&quot;,
+      &quot;userId&quot;: &quot;usr_mq4mn0xp9vb5le&quot;,
+      &quot;items&quot;: [
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xp58hwjh&quot;,
+          &quot;productId&quot;: &quot;prod_008&quot;,
+          &quot;productName&quot;: &quot;桌面收纳盒&quot;,
+          &quot;price&quot;: 89,
+          &quot;quantity&quot;: 2,
+          &quot;subtotal&quot;: 178
+        }
+      ],
+      &quot;totalAmount&quot;: 178,
+      &quot;status&quot;: &quot;refunded&quot;,
+      &quot;paymentMethod&quot;: &quot;card&quot;,
+      &quot;shippingAddress&quot;: {
+        &quot;name&quot;: &quot;用户pp&quot;,
+        &quot;phone&quot;: &quot;13893366501&quot;,
+        &quot;province&quot;: &quot;上海市&quot;,
+        &quot;city&quot;: &quot;上海市&quot;,
+        &quot;district&quot;: &quot;天河区&quot;,
+        &quot;address&quot;: &quot;天河区某某路792号2栋1单元&quot;,
+        &quot;zipCode&quot;: &quot;102058&quot;
+      },
+      &quot;createdAt&quot;: &quot;2026-05-19T00:01:28.005Z&quot;,
+      &quot;paidAt&quot;: &quot;2026-05-19T00:29:28.005Z&quot;
+    },
+    {
+      &quot;id&quot;: &quot;ord_mq4mn0xpqzgdgs&quot;,
+      &quot;orderNo&quot;: &quot;2026060809605220&quot;,
+      &quot;userId&quot;: &quot;usr_mq4mn0xpqqen5w&quot;,
+      &quot;items&quot;: [
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xp4kdyzg&quot;,
+          &quot;productId&quot;: &quot;prod_004&quot;,
+          &quot;productName&quot;: &quot;显示器支架&quot;,
+          &quot;price&quot;: 399,
+          &quot;quantity&quot;: 1,
+          &quot;subtotal&quot;: 399
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xp6dis0q&quot;,
+          &quot;productId&quot;: &quot;prod_006&quot;,
+          &quot;productName&quot;: &quot;移动固态硬盘 1TB&quot;,
+          &quot;price&quot;: 599,
+          &quot;quantity&quot;: 2,
+          &quot;subtotal&quot;: 1198
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpfqolqn&quot;,
+          &quot;productId&quot;: &quot;prod_008&quot;,
+          &quot;productName&quot;: &quot;桌面收纳盒&quot;,
+          &quot;price&quot;: 89,
+          &quot;quantity&quot;: 1,
+          &quot;subtotal&quot;: 89
+        }
+      ],
+      &quot;totalAmount&quot;: 1686,
+      &quot;status&quot;: &quot;shipped&quot;,
+      &quot;paymentMethod&quot;: &quot;card&quot;,
+      &quot;shippingAddress&quot;: {
+        &quot;name&quot;: &quot;用户lr&quot;,
+        &quot;phone&quot;: &quot;13859587423&quot;,
+        &quot;province&quot;: &quot;江苏省&quot;,
+        &quot;city&quot;: &quot;常州市&quot;,
+        &quot;district&quot;: &quot;海淀区&quot;,
+        &quot;address&quot;: &quot;海淀区某某路822号29栋21单元&quot;,
+        &quot;zipCode&quot;: &quot;405592&quot;
+      },
+      &quot;createdAt&quot;: &quot;2026-06-07T22:13:51.354Z&quot;,
+      &quot;paidAt&quot;: &quot;2026-06-07T23:04:51.354Z&quot;,
+      &quot;shippedAt&quot;: &quot;2026-06-08T10:04:51.354Z&quot;
+    },
+    {
+      &quot;id&quot;: &quot;ord_mq4mn0xpjiy7p0&quot;,
+      &quot;orderNo&quot;: &quot;2026060876484663&quot;,
+      &quot;userId&quot;: &quot;usr_mq4mn0xpaya1vl&quot;,
+      &quot;items&quot;: [
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpe7y0wl&quot;,
+          &quot;productId&quot;: &quot;prod_004&quot;,
+          &quot;productName&quot;: &quot;显示器支架&quot;,
+          &quot;price&quot;: 399,
+          &quot;quantity&quot;: 3,
+          &quot;subtotal&quot;: 1197
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xp15ondo&quot;,
+          &quot;productId&quot;: &quot;prod_003&quot;,
+          &quot;productName&quot;: &quot;游戏鼠标&quot;,
+          &quot;price&quot;: 189,
+          &quot;quantity&quot;: 1,
+          &quot;subtotal&quot;: 189
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpyellrr&quot;,
+          &quot;productId&quot;: &quot;prod_002&quot;,
+          &quot;productName&quot;: &quot;机械键盘&quot;,
+          &quot;price&quot;: 459,
+          &quot;quantity&quot;: 2,
+          &quot;subtotal&quot;: 918
+        },
+        {
+          &quot;id&quot;: &quot;item_mq4mn0xpdx36g1&quot;,
+          &quot;productId&quot;: &quot;prod_005&quot;,
+          &quot;productName&quot;: &quot;USB-C 扩展坞&quot;,
+          &quot;price&quot;: 259,
+          &quot;quantity&quot;: 2,
+          &quot;subtotal&quot;: 518
+        }
+      ],
+      &quot;totalAmount&quot;: 2822,
+      &quot;status&quot;: &quot;cancelled&quot;,
+      &quot;paymentMethod&quot;: &quot;bank&quot;,
+      &quot;shippingAddress&quot;: {
+        &quot;name&quot;: &quot;用户gk&quot;,
+        &quot;phone&quot;: &quot;13855342711&quot;,
+        &quot;province&quot;: &quot;江苏省&quot;,
+        &quot;city&quot;: &quot;常州市&quot;,
+        &quot;district&quot;: &quot;福田区&quot;,
+        &quot;address&quot;: &quot;福田区某某路544号25栋25单元&quot;,
+        &quot;zipCode&quot;: &quot;476095&quot;
+      },
+      &quot;createdAt&quot;: &quot;2026-05-27T22:02:57.679Z&quot;
+    }
+  ]
+}</div>
+        </div>
+        
+        
+        
+      </div>
+    </div>
+    <div class="step passed">
+      <div class="step-header" onclick="toggleStep(this)">
+        <span class="step-name">
+          <span class="toggle-icon" style="margin-right: 6px;"></span>
+          验证返回数据
+        </span>
+        <span class="step-duration">0ms</span>
+      </div>
+      
+    </div></div>
+      </div>
+    </div>
+    <div class="test-case passed">
+      <div class="test-case-header" onclick="toggleTestCase(this)">
+        <div class="test-case-title">
+          <span class="toggle-icon">▶</span>
+          <span class="status-badge passed">通过</span>
+          <h3>参数化-账号登录 - user_1_cnyE</h3>
+          <span class="data-set-badge" title="user_1_cnyE, shouldPass=true">user_1_cnyE</span>
+          <span class="priority high">high</span>
+        </div>
+        <div class="test-case-meta">
+          <span>⏱️ 0ms</span>
+          <span>🔄 0次重试</span>
+          <span>📝 2步骤</span>
+        </div>
+      </div>
+      <div class="test-case-body">
+        <div class="tags"><span class="tag">参数化</span><span class="tag">登录</span></div>
+        <p style="margin-top: 8px; color: #666; font-size: 13px;">用不同账号测试登录</p>
+        <div class="step-section">
+          <div class="step-section-title">测试数据</div>
+          <div class="step-section-content">user_1_cnyE, shouldPass=true</div>
+        </div>
+        
+        
+        
+        <div class="steps"><h4 style="margin-bottom: 8px; font-size: 13px;">📋 步骤详情 (2)</h4>
+    <div class="step passed">
+      <div class="step-header" onclick="toggleStep(this)">
+        <span class="step-name">
+          <span class="toggle-icon" style="margin-right: 6px;">▶</span>
+          用户登录
+        </span>
+        <span class="step-duration">0ms</span>
+      </div>
+      <div class="step-body">
+        
+        <div class="step-section">
+          <div class="step-section-title">输出</div>
+          <div class="step-section-content">{
+  &quot;username&quot;: &quot;user_1_cnyE&quot;
+}</div>
+        </div>
+        
+        
+        
+      </div>
+    </div>
+    <div class="step passed">
+      <div class="step-header" onclick="toggleStep(this)">
+        <span class="step-name">
+          <span class="toggle-icon" style="margin-right: 6px;">▶</span>
+          验证登录结果
+        </span>
+        <span class="step-duration">0ms</span>
+      </div>
+      <div class="step-body">
+        
+        <div class="step-section">
+          <div class="step-section-title">输出</div>
+          <div class="step-section-content">{
+  &quot;success&quot;: true
+}</div>
+        </div>
+        
+        
+        
+      </div>
+    </div></div>
+      </div>
+    </div>
+    <div class="test-case passed">
+      <div class="test-case-header" onclick="toggleTestCase(this)">
+        <div class="test-case-title">
+          <span class="toggle-icon">▶</span>
+          <span class="status-badge passed">通过</span>
+          <h3>参数化-账号登录 - user_2_hTOv</h3>
+          <span class="data-set-badge" title="user_2_hTOv, shouldPass=true">user_2_hTOv</span>
+          <span class="priority high">high</span>
+        </div>
+        <div class="test-case-meta">
+          <span>⏱️ 0ms</span>
+          <span>🔄 0次重试</span>
+          <span>📝 2步骤</span>
+        </div>
+      </div>
+      <div class="test-case-body">
+        <div class="tags"><span class="tag">参数化</span><span class="tag">登录</span></div>
+        <p style="margin-top: 8px; color: #666; font-size: 13px;">用不同账号测试登录</p>
+        <div class="step-section">
+          <div class="step-section-title">测试数据</div>
+          <div class="step-section-content">user_2_hTOv, shouldPass=true</div>
+        </div>
+        
+        
+        
+        <div class="steps"><h4 style="margin-bottom: 8px; font-size: 13px;">📋 步骤详情 (2)</h4>
+    <div class="step passed">
+      <div class="step-header" onclick="toggleStep(this)">
+        <span class="step-name">
+          <span class="toggle-icon" style="margin-right: 6px;">▶</span>
+          用户登录
+        </span>
+        <span class="step-duration">0ms</span>
+      </div>
+      <div class="step-body">
+        
+        <div class="step-section">
+          <div class="step-section-title">输出</div>
+          <div class="step-section-content">{
+  &quot;username&quot;: &quot;user_2_hTOv&quot;
+}</div>
+        </div>
+        
+        
+        
+      </div>
+    </div>
+    <div class="step passed">
+      <div class="step-header" onclick="toggleStep(this)">
+        <span class="step-name">
+          <span class="toggle-icon" style="margin-right: 6px;">▶</span>
+          验证登录结果
+        </span>
+        <span class="step-duration">0ms</span>
+      </div>
+      <div class="step-body">
+        
+        <div class="step-section">
+          <div class="step-section-title">输出</div>
+          <div class="step-section-content">{
+  &quot;success&quot;: true
+}</div>
+        </div>
+        
+        
+        
+      </div>
+    </div></div>
+      </div>
+    </div>
+    <div class="test-case failed">
+      <div class="test-case-header" onclick="toggleTestCase(this)">
+        <div class="test-case-title">
+          <span class="toggle-icon">▶</span>
+          <span class="status-badge failed">失败</span>
+          <h3>会失败的测试用例</h3>
+          
+          <span class="priority low">low</span>
+        </div>
+        <div class="test-case-meta">
+          <span>⏱️ 1ms</span>
+          <span>🔄 2次重试</span>
+          <span>📝 1步骤</span>
+        </div>
+      </div>
+      <div class="test-case-body">
+        <div class="tags"><span class="tag">演示</span></div>
+        <p style="margin-top: 8px; color: #666; font-size: 13px;">用于演示失败场景和重试</p>
+        
+        <div class="error-box">
+          <strong>Error: 模拟测试失败</strong>
+          
+Error: 模拟测试失败
+    at D:\trae-bz\TraeProjects\49\dist\examples\basic-usage.js:269:19
+    at TestContextImpl.step (D:\trae-bz\TraeProjects\49\dist\core\context.js:48:34)
+    at TestCase._fn (D:\trae-bz\TraeProjects\49\dist\examples\basic-usage.js:268:19)
+    at D:\trae-bz\TraeProjects\49\dist\core\test-case.js:119:34
+    at new Promise (&lt;anonymous&gt;)
+    at TestCase._runWithTimeout (D:\trae-bz\TraeProjects\49\dist\core\test-case.js:113:16)
+    at TestCase.run (D:\trae-bz\TraeProjects\49\dist\core\test-case.js:50:41)
+    at async runTestCase (D:\trae-bz\TraeProjects\49\dist\core\test-runner.js:57:32)
+    at async runNext (D:\trae-bz\TraeProjects\49\dist\core\test-runner.js:86:36)
+    at async Promise.all (index 2)
+        </div>
+        
+    <div class="retry-section">
+      <h4>🔄 重试记录 (2 次)</h4>
+      
+      <div class="retry-item">
+        <span class="attempt">第 1 次重试</span>
+        <span style="color: #999; margin-left: 10px;">11:04:01</span>
+        <div style="margin-top: 6px; color: #c0392b; font-family: monospace; font-size: 11px;">
+          Error: 模拟测试失败
+        </div>
+      </div>
+    
+      <div class="retry-item">
+        <span class="attempt">第 2 次重试</span>
+        <span style="color: #999; margin-left: 10px;">11:04:01</span>
+        <div style="margin-top: 6px; color: #c0392b; font-family: monospace; font-size: 11px;">
+          Error: 模拟测试失败
+        </div>
+      </div>
+    
+    </div>
+        
+        <div class="steps"><h4 style="margin-bottom: 8px; font-size: 13px;">📋 步骤详情 (1)</h4>
+    <div class="step failed">
+      <div class="step-header" onclick="toggleStep(this)">
+        <span class="step-name">
+          <span class="toggle-icon" style="margin-right: 6px;">▶</span>
+          执行操作
+        </span>
+        <span class="step-duration">0ms</span>
+      </div>
+      <div class="step-body">
+        
+        
+        <div class="step-section">
+          <div class="step-section-title" style="color: #c0392b;">错误</div>
+          <div class="step-section-content" style="background: #fee; color: #c0392b;">
+            Error: 模拟测试失败
+          </div>
+        </div>
+        
+        
+      </div>
+    </div></div>
+      </div>
+    </div>
+    <div class="test-case failed">
+      <div class="test-case-header" onclick="toggleTestCase(this)">
+        <div class="test-case-title">
+          <span class="toggle-icon">▶</span>
+          <span class="status-badge failed">失败</span>
+          <h3>参数化-账号登录 - user_3_fvDi</h3>
+          <span class="data-set-badge" title="user_3_fvDi, shouldPass=false">user_3_fvDi</span>
+          <span class="priority high">high</span>
+        </div>
+        <div class="test-case-meta">
+          <span>⏱️ 0ms</span>
+          <span>🔄 1次重试</span>
+          <span>📝 2步骤</span>
+        </div>
+      </div>
+      <div class="test-case-body">
+        <div class="tags"><span class="tag">参数化</span><span class="tag">登录</span></div>
+        <p style="margin-top: 8px; color: #666; font-size: 13px;">用不同账号测试登录</p>
+        <div class="step-section">
+          <div class="step-section-title">测试数据</div>
+          <div class="step-section-content">user_3_fvDi, shouldPass=false</div>
+        </div>
+        <div class="error-box">
+          <strong>Error: 登录失败（预期内）</strong>
+          
+Error: 登录失败（预期内）
+    at D:\trae-bz\TraeProjects\49\dist\examples\basic-usage.js:310:23
+    at TestContextImpl.step (D:\trae-bz\TraeProjects\49\dist\core\context.js:48:34)
+    at TestCase._fn (D:\trae-bz\TraeProjects\49\dist\examples\basic-usage.js:308:19)
+        </div>
+        
+    <div class="retry-section">
+      <h4>🔄 重试记录 (1 次)</h4>
+      
+      <div class="retry-item">
+        <span class="attempt">第 1 次重试</span>
+        <span style="color: #999; margin-left: 10px;">11:04:01</span>
+        <div style="margin-top: 6px; color: #c0392b; font-family: monospace; font-size: 11px;">
+          Error: 登录失败（预期内）
+        </div>
+      </div>
+    
+    </div>
+        
+        <div class="steps"><h4 style="margin-bottom: 8px; font-size: 13px;">📋 步骤详情 (2)</h4>
+    <div class="step passed">
+      <div class="step-header" onclick="toggleStep(this)">
+        <span class="step-name">
+          <span class="toggle-icon" style="margin-right: 6px;">▶</span>
+          用户登录
+        </span>
+        <span class="step-duration">0ms</span>
+      </div>
+      <div class="step-body">
+        
+        <div class="step-section">
+          <div class="step-section-title">输出</div>
+          <div class="step-section-content">{
+  &quot;username&quot;: &quot;user_3_fvDi&quot;
+}</div>
+        </div>
+        
+        
+        
+      </div>
+    </div>
+    <div class="step failed">
+      <div class="step-header" onclick="toggleStep(this)">
+        <span class="step-name">
+          <span class="toggle-icon" style="margin-right: 6px;">▶</span>
+          验证登录结果
+        </span>
+        <span class="step-duration">0ms</span>
+      </div>
+      <div class="step-body">
+        
+        
+        <div class="step-section">
+          <div class="step-section-title" style="color: #c0392b;">错误</div>
+          <div class="step-section-content" style="background: #fee; color: #c0392b;">
+            Error: 登录失败（预期内）
+          </div>
+        </div>
+        
+        
+      </div>
+    </div></div>
+      </div>
+    </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function switchTab(tabName, el) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      el.classList.add('active');
+      document.getElementById('tab-' + tabName).classList.add('active');
+    }
+
+    function toggleTestCase(el) {
+      el.closest('.test-case').classList.toggle('open');
+    }
+
+    function toggleStep(el) {
+      el.closest('.step').classList.toggle('open');
+    }
+  </script>
+</body>
+</html>

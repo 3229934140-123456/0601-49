@@ -1,4 +1,4 @@
-import { TestSuiteResult } from '../core/types';
+import { TestSuiteResult, NotificationErrorRecord } from '../core/types';
 import { NotificationConfig } from '../core/types';
 
 export type NotificationType = 'success' | 'failure' | 'always';
@@ -46,26 +46,22 @@ export class WebhookNotifier implements Notifier {
   }
 
   async send(message: NotificationMessage, result?: TestSuiteResult): Promise<void> {
-    try {
-      const payload: WebhookPayload = {
-        event: message.type,
-        projectId: this._projectId,
-        result: result!,
-        summary: result ? this._buildSummary(result) : {
-          total: 0,
-          passed: 0,
-          failed: 0,
-          skipped: 0,
-          passRate: 0,
-          duration: 0,
-        },
-        timestamp: message.timestamp,
-      };
+    const payload: WebhookPayload = {
+      event: message.type,
+      projectId: this._projectId,
+      result: result!,
+      summary: result ? this._buildSummary(result) : {
+        total: 0,
+        passed: 0,
+        failed: 0,
+        skipped: 0,
+        passRate: 0,
+        duration: 0,
+      },
+      timestamp: message.timestamp,
+    };
 
-      await this._sendHttpRequest(payload);
-    } catch (error) {
-      console.error(`[WebhookNotifier] Failed to send notification: ${error}`);
-    }
+    await this._sendHttpRequest(payload);
   }
 
   private async _sendHttpRequest(payload: WebhookPayload): Promise<void> {
@@ -79,7 +75,6 @@ export class WebhookNotifier implements Notifier {
       });
     } catch (error: any) {
       if (error?.code === 'MODULE_NOT_FOUND') {
-        console.warn('[WebhookNotifier] axios not available, using fetch fallback');
         await this._sendWithFetch(payload);
       } else {
         throw error;
@@ -145,7 +140,7 @@ export class ConsoleNotifier implements Notifier {
   send(message: NotificationMessage): void {
     const timestamp = new Date(message.timestamp).toLocaleString('zh-CN');
     const prefix = message.type === 'success' ? '✅' : message.type === 'failure' ? '❌' : '📢';
-    
+
     console.log(`[${timestamp}] ${prefix} ${message.title}`);
     if (message.content) {
       console.log(message.content);
@@ -196,16 +191,16 @@ export class NotificationManager {
     return false;
   }
 
-  async notify(result: TestSuiteResult): Promise<void> {
+  async notify(result: TestSuiteResult): Promise<NotificationErrorRecord[]> {
     const hasFailures = result.failed > 0;
     const type: NotificationType = hasFailures ? 'failure' : 'success';
 
-    const shouldNotify = 
+    const shouldNotify =
       (hasFailures && this._config.onFailure) ||
       (!hasFailures && this._config.onSuccess);
 
     if (!shouldNotify) {
-      return;
+      return [];
     }
 
     const message: NotificationMessage = {
@@ -216,15 +211,26 @@ export class NotificationManager {
       data: result,
     };
 
-    const promises = this._config.notifiers.map(n => 
-      Promise.resolve(n.send(message, result))
-    );
+    const errors: NotificationErrorRecord[] = [];
+    const promises = this._config.notifiers.map(async (n) => {
+      try {
+        await n.send(message, result);
+      } catch (error: any) {
+        errors.push({
+          notifierName: n.name,
+          error: error?.message || String(error),
+          timestamp: Date.now(),
+        });
+        console.error(`[NotificationManager] Notifier "${n.name}" failed: ${error?.message || error}`);
+      }
+    });
 
-    await Promise.allSettled(promises);
+    await Promise.all(promises);
+    return errors;
   }
 
-  async notifySuccess(result: TestSuiteResult): Promise<void> {
-    if (!this._config.onSuccess) return;
+  async notifySuccess(result: TestSuiteResult): Promise<NotificationErrorRecord[]> {
+    if (!this._config.onSuccess) return [];
 
     const message: NotificationMessage = {
       title: `测试通过 - ${result.title}`,
@@ -234,15 +240,25 @@ export class NotificationManager {
       data: result,
     };
 
-    const promises = this._config.notifiers.map(n => 
-      Promise.resolve(n.send(message, result))
-    );
+    const errors: NotificationErrorRecord[] = [];
+    const promises = this._config.notifiers.map(async (n) => {
+      try {
+        await n.send(message, result);
+      } catch (error: any) {
+        errors.push({
+          notifierName: n.name,
+          error: error?.message || String(error),
+          timestamp: Date.now(),
+        });
+      }
+    });
 
-    await Promise.allSettled(promises);
+    await Promise.all(promises);
+    return errors;
   }
 
-  async notifyFailure(result: TestSuiteResult): Promise<void> {
-    if (!this._config.onFailure) return;
+  async notifyFailure(result: TestSuiteResult): Promise<NotificationErrorRecord[]> {
+    if (!this._config.onFailure) return [];
 
     const message: NotificationMessage = {
       title: `测试失败 - ${result.title}`,
@@ -252,11 +268,21 @@ export class NotificationManager {
       data: result,
     };
 
-    const promises = this._config.notifiers.map(n => 
-      Promise.resolve(n.send(message, result))
-    );
+    const errors: NotificationErrorRecord[] = [];
+    const promises = this._config.notifiers.map(async (n) => {
+      try {
+        await n.send(message, result);
+      } catch (error: any) {
+        errors.push({
+          notifierName: n.name,
+          error: error?.message || String(error),
+          timestamp: Date.now(),
+        });
+      }
+    });
 
-    await Promise.allSettled(promises);
+    await Promise.all(promises);
+    return errors;
   }
 
   private _buildMessageContent(result: TestSuiteResult): string {

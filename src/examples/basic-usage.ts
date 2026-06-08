@@ -12,10 +12,12 @@ import {
   RetryStrategy,
   ReportGenerator,
   NotificationManager,
+  ParameterizedTestCase,
+  parameterize,
 } from '../index';
 
 async function main() {
-  console.log('=== 自动化测试平台示例 ===\n');
+  console.log('=== 自动化测试平台示例 - 增强版 ===\n');
 
   exampleDataGenerator();
   console.log('');
@@ -27,6 +29,9 @@ async function main() {
   console.log('');
 
   await exampleRetryStrategy();
+  console.log('');
+
+  await exampleParameterizedTests();
   console.log('');
 
   await exampleFullTestSuite();
@@ -159,22 +164,87 @@ async function exampleRetryStrategy() {
   console.log('  结果:', result.result);
 }
 
+async function exampleParameterizedTests() {
+  console.log('【5. 参数化测试示例】');
+  console.log('');
+
+  const testData = [
+    { username: 'user_a', password: 'pass123', expectedRole: 'admin' },
+    { username: 'user_b', password: 'pass456', expectedRole: 'user' },
+    { username: 'user_c', password: 'pass789', expectedRole: 'guest' },
+  ];
+
+  console.log('--- 方式1: ParameterizedTestCase 类 ---');
+  const paramTest = new ParameterizedTestCase(
+    {
+      title: '用户登录测试',
+      description: '参数化测试不同用户登录',
+      tags: ['登录', '参数化'],
+      priority: 'high',
+      dataSummary: (data) => `${data.username} / ${data.expectedRole}`,
+      dataName: (data, index) => `用户${index + 1}: ${data.username}`,
+    },
+    async (ctx) => {
+      const data = ctx.get('dataSet');
+      await ctx.step('验证用户名', async () => {
+        Assert.assertTruthy(data.username);
+      });
+      await ctx.step('验证角色', async () => {
+        Assert.assertTruthy(data.expectedRole);
+      });
+    }
+  );
+
+  paramTest.withData(testData);
+  const testCases = paramTest.buildTestCases();
+  console.log('  生成了', testCases.length, '个参数化用例');
+  testCases.forEach((tc, i) => {
+    console.log(`  [${i + 1}] ${tc.meta.title}`);
+  });
+
+  console.log('');
+  console.log('--- 方式2: parameterize 快捷函数 ---');
+  const quickCases = parameterize(
+    [1, 2, 3, 4, 5],
+    {
+      title: '数字校验',
+      dataSummary: (n) => `数字 ${n}`,
+      dataName: (n) => `n=${n}`,
+    },
+    async (ctx) => {
+      const n = ctx.get('dataSet');
+      await ctx.step('校验大于0', () => {
+        Assert.assertGreaterThan(n, 0);
+      });
+    }
+  );
+  console.log('  生成了', quickCases.length, '个参数化用例');
+}
+
 async function exampleFullTestSuite() {
-  console.log('【5. 完整测试套件示例】');
+  console.log('【6. 完整测试套件示例】');
   console.log('');
 
   const platform = new AutoTestPlatform({
     runner: {
-      concurrency: 2,
+      concurrency: 3,
       retries: 1,
       timeout: 5000,
+      serialTags: ['串行'],
+      includeSkippedInReport: true,
     },
     report: {
       outputDir: './test-reports',
       format: ['html', 'json', 'markdown'],
-      reportTitle: '订单系统测试报告',
+      reportTitle: '订单系统测试报告 - 增强版',
       projectName: '订单系统',
       environment: 'test',
+      shareable: true,
+      shareBaseUrl: 'https://reports.example.com/share',
+      showStepDetails: true,
+      showScreenshots: true,
+      showRetryRecords: true,
+      showSkipped: true,
     },
     notification: {
       onSuccess: true,
@@ -182,7 +252,7 @@ async function exampleFullTestSuite() {
     },
   });
 
-  const suite = platform.createSuite('订单流程测试');
+  const suite = platform.createSuite('订单流程测试 - 增强版');
 
   const testAccounts = AccountGenerator.generateBatch(5);
   const testOrders = OrderGenerator.generateBatch(10);
@@ -225,6 +295,7 @@ async function exampleFullTestSuite() {
       description: '测试创建订单接口',
       tags: ['订单', '创建'],
       priority: 'critical',
+      resourceLocks: ['order_resource'],
     },
     async (ctx) => {
       const orderData = await ctx.step('准备订单数据', async () => {
@@ -269,7 +340,7 @@ async function exampleFullTestSuite() {
   const testCase4 = new TestCase(
     {
       title: '会失败的测试用例',
-      description: '用于演示失败场景',
+      description: '用于演示失败场景和重试',
       tags: ['演示'],
       priority: 'low',
       retries: 2,
@@ -281,18 +352,84 @@ async function exampleFullTestSuite() {
     }
   );
 
-  suite.addTestCases([testCase1, testCase2, testCase3, testCase4]);
+  const testCase5 = new TestCase(
+    {
+      title: '被跳过的测试用例',
+      description: '这个用例会被跳过，用于演示跳过统计',
+      tags: ['演示', '跳过'],
+      priority: 'low',
+      skip: true,
+    },
+    async (ctx) => {
+      await ctx.step('不会执行的步骤', async () => {
+      });
+    }
+  );
+
+  const testCase6 = new TestCase(
+    {
+      title: '串行执行的测试用例',
+      description: '带有串行标签，会串行执行',
+      tags: ['串行', '演示'],
+      priority: 'medium',
+    },
+    async (ctx) => {
+      await ctx.step('执行串行操作', async () => {
+        return { ok: true };
+      });
+    }
+  );
+
+  const paramTestCases = parameterize(
+    [
+      { account: testAccounts[0], shouldPass: true },
+      { account: testAccounts[1], shouldPass: true },
+      { account: testAccounts[2], shouldPass: false },
+    ],
+    {
+      title: '参数化-账号登录',
+      description: '用不同账号测试登录',
+      tags: ['参数化', '登录'],
+      priority: 'high',
+      dataSummary: (d) => `${d.account.username}, shouldPass=${d.shouldPass}`,
+      dataName: (d) => d.account.username,
+    },
+    async (ctx) => {
+      const data = ctx.get('dataSet') as any;
+      await ctx.step('用户登录', async () => {
+        return { username: data.account.username };
+      });
+
+      await ctx.step('验证登录结果', async () => {
+        if (!data.shouldPass) {
+          throw new Error('登录失败（预期内）');
+        }
+        return { success: true };
+      });
+    }
+  );
+
+  suite.addTestCases([
+    testCase1,
+    testCase2,
+    testCase3,
+    testCase4,
+    testCase5,
+    testCase6,
+    ...paramTestCases,
+  ]);
 
   console.log('  开始执行测试套件...');
   console.log('');
 
-  const { result, reports } = await platform.runSuite(suite);
+  const { result, reports, notificationErrors } = await platform.runSuite(suite);
 
   console.log('');
   console.log('  === 测试结果 ===');
   console.log('  总数:', result.total);
   console.log('  通过:', result.passed);
   console.log('  失败:', result.failed);
+  console.log('  超时:', result.timeout || 0);
   console.log('  跳过:', result.skipped);
   const passRate = result.total > 0 ? ((result.passed / result.total) * 100).toFixed(1) : '0';
   console.log('  通过率:', passRate + '%');
@@ -304,17 +441,42 @@ async function exampleFullTestSuite() {
   reports.forEach(report => {
     const sizeKb = (report.size / 1024).toFixed(2);
     console.log('    -', report.format + ':', report.path, '(' + sizeKb + ' KB)');
+    if (report.shareableUrl) {
+      console.log('      🔗 分享地址:', report.shareableUrl);
+    }
   });
   console.log('');
 
+  if (notificationErrors.length > 0) {
+    console.log('  ⚠️ 通知异常:');
+    notificationErrors.forEach(e => {
+      console.log('    -', e.notifierName + ':', e.error);
+    });
+    console.log('');
+  }
+
   console.log('  用例详情:');
   result.results.forEach(r => {
-    const icon = r.status === 'passed' ? '✅' : '❌';
-    console.log('    ' + icon + ' ' + r.meta.title + ' (' + r.meta.priority + ') - ' + r.steps.length + ' 个步骤');
+    const icon = r.status === 'passed' ? '✅' : r.status === 'skipped' ? '⏭️' : '❌';
+    const dataSetInfo = r.dataSet ? ` [${r.dataSet.name}]` : '';
+    console.log('    ' + icon + ' ' + r.meta.title + dataSetInfo + ' (' + r.meta.priority + ') - ' + r.steps.length + ' 个步骤');
     if (r.error) {
       console.log('       错误:', r.error.message);
     }
+    if (r.retryCount > 0) {
+      console.log('       重试次数:', r.retryCount);
+    }
   });
+
+  console.log('');
+  console.log('  跳过用例详情:');
+  if (result.skippedDetails && result.skippedDetails.length > 0) {
+    result.skippedDetails.forEach(r => {
+      console.log('    ⏭️', r.meta.title, '-', r.meta.description || '无描述');
+    });
+  } else {
+    console.log('    无');
+  }
 }
 
 main().catch(console.error);

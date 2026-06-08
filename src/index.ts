@@ -6,16 +6,24 @@ export * from './screenshot';
 export * from './retry';
 export * from './report';
 export * from './notification';
+export * from './parameterized';
 
 import { TestCase, TestSuite, TestRunner } from './core';
 import { TestSuiteConfig } from './core';
-import { ReportGenerator, ReportGeneratorOptions } from './report';
+import { ReportGenerator, ReportGeneratorOptions, GeneratedReport } from './report';
 import { NotificationManager, NotificationOptions } from './notification';
+import { TestSuiteResult, NotificationErrorRecord } from './core/types';
 
 export interface AutoTestPlatformConfig {
   runner?: TestSuiteConfig;
   report?: ReportGeneratorOptions;
   notification?: NotificationOptions;
+}
+
+export interface RunSuiteResult {
+  result: TestSuiteResult;
+  reports: GeneratedReport[];
+  notificationErrors: NotificationErrorRecord[];
 }
 
 export class AutoTestPlatform {
@@ -36,27 +44,32 @@ export class AutoTestPlatform {
     return suite;
   }
 
-  async runSuite(suite: TestSuite) {
+  async runSuite(suite: TestSuite): Promise<RunSuiteResult> {
     const result = await this._runner.run(suite);
-    
+
     const reports = await this._reportGenerator.generate(result);
-    
-    await this._notificationManager.notify(result);
-    
+
+    const notificationErrors = await this._notificationManager.notify(result);
+
+    if (notificationErrors.length > 0) {
+      result.notificationErrors = notificationErrors;
+    }
+
     return {
       result,
       reports,
+      notificationErrors,
     };
   }
 
-  async runAllSuites() {
+  async runAllSuites(): Promise<Array<{ suite: TestSuite } & RunSuiteResult>> {
     const allResults = [];
-    
+
     for (const suite of this._suites) {
-      const { result, reports } = await this.runSuite(suite);
-      allResults.push({ suite, result, reports });
+      const runResult = await this.runSuite(suite);
+      allResults.push({ suite, ...runResult });
     }
-    
+
     return allResults;
   }
 

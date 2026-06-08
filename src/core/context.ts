@@ -1,16 +1,23 @@
-import { TestContext, TestCaseMeta, TestStep, TestStatus, TestError, TestContextData } from './types';
+import { TestContext, TestCaseMeta, TestStep, TestStatus, TestError, TestContextData, DataSetMeta } from './types';
 
 export class TestContextImpl implements TestContext {
   readonly meta: TestCaseMeta;
   readonly data: TestContextData;
+  readonly dataSet?: DataSetMeta;
   private _steps: TestStep[] = [];
   private _currentStep?: TestStep;
   private _screenshots: string[] = [];
   private _stepCounter: number = 0;
+  private _stepStack: TestStep[] = [];
 
-  constructor(meta: TestCaseMeta) {
+  constructor(meta: TestCaseMeta, dataSet?: DataSetMeta) {
     this.meta = meta;
     this.data = {};
+    this.dataSet = dataSet;
+    if (dataSet) {
+      this.data['dataSet'] = dataSet.data;
+      this.data['dataIndex'] = dataSet.index;
+    }
   }
 
   get steps(): ReadonlyArray<TestStep> {
@@ -36,17 +43,19 @@ export class TestContextImpl implements TestContext {
   async step<T = any>(name: string, fn: () => Promise<T> | T, description?: string): Promise<T> {
     this._stepCounter++;
     const stepId = `step-${this._stepCounter}-${Date.now()}`;
-    
+
     const step: TestStep = {
       id: stepId,
       name,
       description,
       startTime: Date.now(),
       status: 'running',
+      logs: [],
     };
 
     this._steps.push(step);
     this._currentStep = step;
+    this._stepStack.push(step);
 
     try {
       const result = await fn();
@@ -62,23 +71,57 @@ export class TestContextImpl implements TestContext {
       step.error = this._normalizeError(error);
       throw error;
     } finally {
-      this._currentStep = undefined;
+      this._stepStack.pop();
+      this._currentStep = this._stepStack[this._stepStack.length - 1];
     }
   }
 
   log(message: string, ...args: any[]): void {
-    const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}] [INFO] [${this.meta.id}] ${message}`, ...args);
+    const timestamp = Date.now();
+    const formattedMessage = args.length > 0 ? `${message} ${args.map(String).join(' ')}` : message;
+
+    if (this._currentStep && this._currentStep.logs) {
+      this._currentStep.logs.push({
+        timestamp,
+        level: 'info',
+        message: formattedMessage,
+      });
+    }
+
+    const timeStr = new Date(timestamp).toISOString();
+    console.log(`[${timeStr}] [INFO] [${this.meta.id}] ${formattedMessage}`);
   }
 
   warn(message: string, ...args: any[]): void {
-    const timestamp = new Date().toISOString();
-    console.warn(`[${timestamp}] [WARN] [${this.meta.id}] ${message}`, ...args);
+    const timestamp = Date.now();
+    const formattedMessage = args.length > 0 ? `${message} ${args.map(String).join(' ')}` : message;
+
+    if (this._currentStep && this._currentStep.logs) {
+      this._currentStep.logs.push({
+        timestamp,
+        level: 'warn',
+        message: formattedMessage,
+      });
+    }
+
+    const timeStr = new Date(timestamp).toISOString();
+    console.warn(`[${timeStr}] [WARN] [${this.meta.id}] ${formattedMessage}`);
   }
 
   error(message: string, ...args: any[]): void {
-    const timestamp = new Date().toISOString();
-    console.error(`[${timestamp}] [ERROR] [${this.meta.id}] ${message}`, ...args);
+    const timestamp = Date.now();
+    const formattedMessage = args.length > 0 ? `${message} ${args.map(String).join(' ')}` : message;
+
+    if (this._currentStep && this._currentStep.logs) {
+      this._currentStep.logs.push({
+        timestamp,
+        level: 'error',
+        message: formattedMessage,
+      });
+    }
+
+    const timeStr = new Date(timestamp).toISOString();
+    console.error(`[${timeStr}] [ERROR] [${this.meta.id}] ${formattedMessage}`);
   }
 
   attachScreenshot(path: string): void {
