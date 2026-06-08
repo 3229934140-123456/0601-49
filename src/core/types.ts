@@ -88,6 +88,13 @@ export interface TestSuiteResult {
   environment?: string;
   projectName?: string;
   reportId?: string;
+  reportUrls?: {
+    html?: string;
+    json?: string;
+    markdown?: string;
+  };
+  filteredByTags?: boolean;
+  originalTotal?: number;
 }
 
 export interface NotificationErrorRecord {
@@ -170,4 +177,63 @@ export interface ParameterizedTestCaseConfig {
   retries?: number;
   dataSummary?: (data: any, index: number) => string;
   dataName?: (data: any, index: number) => string;
+}
+
+export interface TestPreviewItem {
+  id: string;
+  title: string;
+  tags: string[];
+  priority: string;
+  willRun: boolean;
+  skipReason?: string;
+  isSerial?: boolean;
+  serialReason?: string;
+  resourceLocks?: string[];
+  dataSet?: string;
+}
+
+export interface TestPreviewResult {
+  suiteTitle: string;
+  total: number;
+  willRun: number;
+  skipped: number;
+  skippedByTag: number;
+  skippedBySkipFlag: number;
+  serialCount: number;
+  parallelCount: number;
+  resourceLocks: string[];
+  items: TestPreviewItem[];
+}
+
+export interface ReportHistoryEntry {
+  reportId: string;
+  suiteTitle: string;
+  suiteId: string;
+  startTime: number;
+  endTime: number;
+  duration: number;
+  total: number;
+  passed: number;
+  failed: number;
+  skipped: number;
+  timeout: number;
+  passRate: number;
+  reportUrls: {
+    html?: string;
+    json?: string;
+    markdown?: string;
+  };
+  failedCaseNames: string[];
+  environment?: string;
+  projectName?: string;
+}
+
+export interface ReportHistoryIndex {
+  projectName: string;
+  environment: string;
+  totalReports: number;
+  latestReport?: ReportHistoryEntry;
+  passRateTrend: number[];
+  lastUpdated: number;
+  reports: ReportHistoryEntry[];
 }

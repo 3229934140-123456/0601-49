@@ -2,8 +2,13 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { TestSuiteResult, TestResult, TestStep, RetryRecord, ReportConfig } from '../core/types';
 import { NotificationErrorRecord } from '../core/types';
+import { ReportHistoryManager } from './report-history';
 
-export interface ReportGeneratorOptions extends ReportConfig {}
+export interface ReportGeneratorOptions extends ReportConfig {
+  enableHistory?: boolean;
+  maxHistory?: number;
+  historyIndexFileName?: string;
+}
 
 export interface GeneratedReport {
   format: string;
@@ -14,6 +19,7 @@ export interface GeneratedReport {
 
 export class ReportGenerator {
   private _config: Required<ReportGeneratorOptions>;
+  private _historyManager?: ReportHistoryManager;
 
   constructor(config: ReportGeneratorOptions = {}) {
     this._config = {
@@ -30,7 +36,20 @@ export class ReportGenerator {
       showScreenshots: config.showScreenshots ?? true,
       showRetryRecords: config.showRetryRecords ?? true,
       showSkipped: config.showSkipped ?? true,
+      enableHistory: config.enableHistory ?? true,
+      maxHistory: config.maxHistory ?? 20,
+      historyIndexFileName: config.historyIndexFileName || 'index.html',
     };
+
+    if (this._config.enableHistory) {
+      this._historyManager = new ReportHistoryManager({
+        outputDir: this._config.outputDir,
+        maxHistory: this._config.maxHistory,
+        projectName: this._config.projectName,
+        environment: this._config.environment,
+        shareBaseUrl: this._config.shareBaseUrl,
+      });
+    }
   }
 
   async generate(result: TestSuiteResult): Promise<GeneratedReport[]> {
@@ -66,6 +85,19 @@ export class ReportGenerator {
       }
 
       reports.push(report);
+    }
+
+    const reportUrls: { html?: string; json?: string; markdown?: string } = {};
+    for (const r of reports) {
+      const url = r.shareableUrl || r.path;
+      if (r.format === 'html') reportUrls.html = url;
+      if (r.format === 'json') reportUrls.json = url;
+      if (r.format === 'markdown') reportUrls.markdown = url;
+    }
+    result.reportUrls = reportUrls;
+
+    if (this._historyManager) {
+      this._historyManager.addReport(result, reports);
     }
 
     return reports;
@@ -142,6 +174,20 @@ export class ReportGenerator {
       ? this._buildNotificationErrorsHtml(result.notificationErrors)
       : '';
 
+    const shareUrlHtml = this._config.shareable && this._config.shareBaseUrl && result.reportUrls?.html
+      ? `<div>🔗 分享地址: <a href="${result.reportUrls.html}" target="_blank" style="color: #0366d6; text-decoration: none;">${result.reportUrls.html}</a></div>`
+      : '';
+
+    const historyUrlHtml = this._config.enableHistory
+      ? `<div>📚 历史报告: <a href="${this._config.historyIndexFileName}" style="color: #0366d6; text-decoration: none;">查看全部历史</a></div>`
+      : '';
+
+    const filteredNoticeHtml = result.filteredByTags && result.originalTotal
+      ? `<div style="margin-top: 8px; padding: 8px 12px; background: #fff3e0; border-radius: 4px; font-size: 13px; color: #e65100;">
+           ⚠️ 本次按标签筛选执行，共 ${result.originalTotal} 个用例，实际参与 ${result.total} 个（已排除 ${result.originalTotal - result.total} 个未匹配标签的用例）
+         </div>`
+      : '';
+
     return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -197,6 +243,9 @@ export class ReportGenerator {
     .step-section:last-child { margin-bottom: 0; }
     .step-section-title { font-weight: 600; color: #555; margin-bottom: 4px; font-size: 11px; text-transform: uppercase; }
     .step-section-content { background: #f6f8fa; padding: 8px 10px; border-radius: 4px; font-family: 'Monaco', 'Consolas', monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; }
+    .step-section-content.expected { background: #e8f5e9; color: #2e7d32; }
+    .step-section-content.actual { background: #ffebee; color: #c62828; }
+    .assert-diff { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .error-box { background: #fee; border: 1px solid #fcc; border-radius: 4px; padding: 12px; margin-top: 8px; font-family: 'Monaco', 'Consolas', monospace; font-size: 12px; white-space: pre-wrap; word-break: break-all; color: #c0392b; }
     .retry-section { margin-top: 12px; padding: 12px; background: #fff8e1; border-radius: 4px; border: 1px solid #ffe082; }
     .retry-section h4 { font-size: 13px; color: #f57f17; margin-bottom: 8px; }
@@ -222,6 +271,10 @@ export class ReportGenerator {
     .tab:hover { color: #0366d6; }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
+    .fail-summary-card { background: #fff5f5; border: 1px solid #feb2b2; border-radius: 6px; padding: 12px; margin-bottom: 12px; }
+    .fail-summary-card h4 { color: #c53030; font-size: 13px; margin-bottom: 8px; }
+    .fail-summary-item { font-size: 12px; color: #742a2a; margin-bottom: 4px; }
+    .fail-summary-item strong { color: #c53030; }
   </style>
 </head>
 <body>
@@ -232,8 +285,10 @@ export class ReportGenerator {
         <div>📦 项目: ${this._config.projectName} | 🌍 环境: ${this._config.environment}</div>
         <div>📋 套件: ${result.title} | 📅 生成时间: ${new Date().toLocaleString('zh-CN')}</div>
         <div>⏱️ 总耗时: ${this._formatDuration(result.duration)} | 报告ID: ${result.reportId || '-'}</div>
-        ${this._config.shareable ? `<div>🔗 分享: <span style="color: #0366d6;">${this._config.shareBaseUrl || '已启用分享'}</span></div>` : ''}
+        ${shareUrlHtml}
+        ${historyUrlHtml}
       </div>
+      ${filteredNoticeHtml}
     </div>
 
     <div class="summary">
@@ -346,6 +401,10 @@ export class ReportGenerator {
         </div>`
       : '';
 
+    const failSummaryHtml = (result.status === 'failed' || result.status === 'timeout')
+      ? this._buildFailSummaryCard(result)
+      : '';
+
     return `
     <div class="test-case ${result.status}">
       <div class="test-case-header" onclick="toggleTestCase(this)">
@@ -365,6 +424,7 @@ export class ReportGenerator {
       <div class="test-case-body">
         <div class="tags">${tagsHtml}</div>
         ${result.meta.description ? `<p style="margin-top: 8px; color: #666; font-size: 13px;">${this._escapeHtml(result.meta.description)}</p>` : ''}
+        ${failSummaryHtml}
         ${dataSummaryHtml}
         ${errorHtml}
         ${retryHtml}
@@ -374,18 +434,52 @@ export class ReportGenerator {
     </div>`;
   }
 
+  private _buildFailSummaryCard(result: TestResult): string {
+    const failedStep = result.steps.find(s => s.status === 'failed' || s.status === 'timeout');
+    const dataSummary = result.dataSet?.summary || '-';
+    const errorName = result.error?.name || '-';
+    const errorMsg = result.error?.message || '-';
+
+    return `
+    <div class="fail-summary-card">
+      <h4>⚠️ 失败摘要</h4>
+      <div class="fail-summary-item"><strong>失败步骤:</strong> ${failedStep ? this._escapeHtml(failedStep.name) : '-'}</div>
+      <div class="fail-summary-item"><strong>错误类型:</strong> ${this._escapeHtml(errorName)}</div>
+      <div class="fail-summary-item"><strong>错误信息:</strong> ${this._escapeHtml(errorMsg)}</div>
+      ${result.dataSet ? `<div class="fail-summary-item"><strong>测试数据:</strong> <code>${this._escapeHtml(dataSummary)}</code></div>` : ''}
+      ${result.retryCount > 0 ? `<div class="fail-summary-item"><strong>重试次数:</strong> ${result.retryCount} 次</div>` : ''}
+    </div>`;
+  }
+
   private _buildStepHtml(step: TestStep): string {
     const inputHtml = step.input !== undefined
       ? `<div class="step-section">
-          <div class="step-section-title">输入</div>
+          <div class="step-section-title">输入/参数</div>
           <div class="step-section-content">${this._formatJson(step.input)}</div>
         </div>`
       : '';
 
     const outputHtml = step.output !== undefined
       ? `<div class="step-section">
-          <div class="step-section-title">输出</div>
+          <div class="step-section-title">输出/结果</div>
           <div class="step-section-content">${this._formatJson(step.output)}</div>
+        </div>`
+      : '';
+
+    const hasAssertDiff = step.error && step.error.expected !== undefined && step.error.actual !== undefined;
+    const assertDiffHtml = hasAssertDiff
+      ? `<div class="step-section">
+          <div class="step-section-title" style="color: #c0392b;">断言对比</div>
+          <div class="assert-diff">
+            <div>
+              <div class="step-section-title" style="color: #2e7d32;">预期值</div>
+              <div class="step-section-content expected">${this._formatJson(step.error.expected)}</div>
+            </div>
+            <div>
+              <div class="step-section-title" style="color: #c62828;">实际值</div>
+              <div class="step-section-content actual">${this._formatJson(step.error.actual)}</div>
+            </div>
+          </div>
         </div>`
       : '';
 
@@ -413,7 +507,7 @@ export class ReportGenerator {
       : '';
 
     const hasDetails = step.input !== undefined || step.output !== undefined || step.error ||
-      (step.logs && step.logs.length > 0) || step.screenshot;
+      (step.logs && step.logs.length > 0) || step.screenshot || hasAssertDiff;
 
     return `
     <div class="step ${step.status}">
@@ -427,6 +521,7 @@ export class ReportGenerator {
       ${hasDetails ? `<div class="step-body">
         ${inputHtml}
         ${outputHtml}
+        ${assertDiffHtml}
         ${errorHtml}
         ${logsHtml}
         ${screenshotHtml}
@@ -488,10 +583,23 @@ export class ReportGenerator {
     md += `- **生成时间**: ${new Date().toLocaleString('zh-CN')}\n`;
     md += `- **总耗时**: ${this._formatDuration(result.duration)}\n`;
     md += `- **报告ID**: ${result.reportId || '-'}\n`;
-    if (this._config.shareable && this._config.shareBaseUrl) {
-      md += `- **分享链接**: ${this._config.shareBaseUrl}\n`;
+    if (result.reportUrls?.html) {
+      md += `- **HTML 报告**: ${result.reportUrls.html}\n`;
+    }
+    if (result.reportUrls?.json) {
+      md += `- **JSON 报告**: ${result.reportUrls.json}\n`;
+    }
+    if (result.reportUrls?.markdown) {
+      md += `- **Markdown 报告**: ${result.reportUrls.markdown}\n`;
+    }
+    if (this._config.enableHistory) {
+      md += `- **历史报告**: ${this._config.historyIndexFileName}\n`;
     }
     md += `\n`;
+
+    if (result.filteredByTags && result.originalTotal) {
+      md += `> ⚠️ 本次按标签筛选执行，共 **${result.originalTotal}** 个用例，实际参与 **${result.total}** 个（已排除 ${result.originalTotal - result.total} 个未匹配标签的用例）\n\n`;
+    }
 
     md += `## 概览\n\n`;
     md += `| 指标 | 数值 |\n`;
